@@ -1,14 +1,22 @@
 import { isIterable } from "./isIterable.mjs";
 import { Task } from "./Task.mjs";
+import { createLoop } from "./createLoop.mjs";
+
+const staticProps = {
+  enumerable: false,
+  configurable: false
+};
 
 export function ProcessConcurrently(fn, idxArg, {
-  commonArgs, concurrency = 4, jobname = "SLOT", log = (...args) => console.log(...args), applyArgs = (item, common, ctx) => [item, common, ctx],
+  commonArgs,
+  concurrency = 4,
+  log = (...args) => console.log(...args),
+  applyArgs = (item, common, ctx) => [item, common, ctx],
 } = {}) {
   if (!this || !(this instanceof ProcessConcurrently)) {
     return new ProcessConcurrently(fn, idxArg, {
       commonArgs,
       concurrency,
-      jobname,
       log,
       applyArgs,
     });
@@ -28,20 +36,19 @@ export function ProcessConcurrently(fn, idxArg, {
     idxx: 0,
     active: 0,
     done: false,
-    iterator: idxArg[Symbol.iterator](),
+    iterator: idxArg[Symbol.iterator](), // magic is here
     log,
     applyArgs,
     commonArgs,
-    jobname,
     idxArg,
     fn,
   };
-  const unpausenoop = () => { };
+  const unpausenoop = () => null;
   let unpause = unpausenoop;
   const pause = () => {
     return new Promise(res => {
       if (unpause) {
-        unpause();
+        unpause(); // ensure old promises are always resolved
       }
       unpause = () => {
         unpause = unpausenoop;
@@ -49,19 +56,7 @@ export function ProcessConcurrently(fn, idxArg, {
       };
     });
   };
-  const loop = (async () => {
-    Array.from({ length: concurrency }).map(() => new Task(concurrent));
-    concurrent.log(`Awaiting ${concurrent.jobs.length} jobs to finish`);
-    while (!concurrent.done) {
-      await Promise.all(concurrent.jobs.map(({ promise }) => promise));
-      await Promise.all(concurrent.oldTasks.map(({ promise }) => promise));
-      if (!concurrent.done) {
-        await pause();
-      }
-    }
-    concurrent.log('Jobs finished');
-    return concurrent.results;
-  })();
+  const loop = createLoop(concurrency, concurrent, pause);
   Object.defineProperty(this, 'concurrency', {
     get() { return concurrent.jobs.length; },
     set(newValue) {
@@ -77,7 +72,9 @@ export function ProcessConcurrently(fn, idxArg, {
       } else if (newValue > concurrent.jobs.length) {
         log(`Scaling up to ${newValue}`);
         const newTasks = newValue - concurrent.jobs.length;
-        Array.from({ length: newTasks }).map(() => new Task(concurrent));
+        for(let i = 0; i < newTasks; i++){
+          new Task(concurrent); // pushes itself to jobs upon creation
+        }
         log(`Scaled up to ${newValue}`);
       }
       if (isPaused) {
@@ -85,77 +82,65 @@ export function ProcessConcurrently(fn, idxArg, {
         unpause(); // resolve the promise that blocks checking job-complesion
       }
     },
-    enumerable: false,
-    configurable: false
+    ...staticProps
   });
-  Object.defineProperty(this, 'valueOf', {
-    get() { return () => loop; },
-    enumerable: false,
-    configurable: false
-  });
-  Object.defineProperty(this, 'then', {
-    get() {
-      return (thenFn, catchFn) => {
-        loop.then(thenFn, catchFn);
-      };
+  Object.defineProperties(this, {
+    then: {
+      get() {
+        return (thenFn, catchFn) => loop.then(thenFn, catchFn)
+      },
+      ...staticProps
     },
-    enumerable: false,
-    configurable: false
-  });
-  Object.defineProperty(this, 'catch', {
-    get() {
-      return (catchFn) => {
-        loop.catch(catchFn);
-      };
+    catch: {
+      get() {
+        return (catchFn) => loop.catch(catchFn)
+      },
+      ...staticProps
     },
-    enumerable: false,
-    configurable: false
-  });
-  Object.defineProperty(this, Symbol.species, {
-    get() { return Promise; },
-    enumerable: false,
-    configurable: false
-  });
-  Object.defineProperty(this, 'result', {
-    get() { return [].concat(concurrent.results); },
-    enumerable: false,
-    configurable: false
-  });
-  Object.defineProperty(this, 'done', {
-    get() { return concurrent.doneitems; },
-    enumerable: false,
-    configurable: false
-  });
-  Object.defineProperty(this, 'active', {
-    get() { return concurrent.active; },
-    enumerable: false,
-    configurable: false
-  });
-  Object.defineProperty(this, 'idx', {
-    get() { return concurrent.idxx; },
-    enumerable: false,
-    configurable: false
-  });
-  Object.defineProperty(this, 'running', {
-    get() { return !concurrent.done; },
-    enumerable: false,
-    configurable: false
-  });
-  Object.defineProperty(this, 'errors', {
-    get() { return concurrent.errors; },
-    enumerable: false,
-    configurable: false
+    valueOf: {
+      get() { return () => loop; },
+      ...staticProps
+    },
+    [Symbol.species]: {
+      get() { return Promise; },
+      ...staticProps
+    },
+    result: {
+      get() { return [].concat(concurrent.results); },
+      ...staticProps
+    },
+    done: {
+      get() { return concurrent.doneitems; },
+      ...staticProps,
+    }, 
+    active: {
+      get() { return concurrent.active; },
+      ...staticProps,
+    }, 
+    idx: {
+      get() { return concurrent.idxx; },
+      ...staticProps,
+    }, 
+    running: {
+      get() { return !concurrent.done; },
+      ...staticProps,
+    }, 
+    errors: {
+      get() { return concurrent.errors; },
+      ...staticProps,
+    }, 
+
   });
   if (concurrent.idxArg.length) {
-    Object.defineProperty(this, 'waiting', {
-      get() { return concurrent.idxArg.length - concurrent.idxx; },
-      enumerable: false,
-      configurable: false
-    });
-    Object.defineProperty(this, 'total', {
-      get() { return concurrent.idxArg.length; },
-      enumerable: false,
-      configurable: false
+    Object.defineProperties(this, {
+      waiting: {
+        get() { return concurrent.idxArg.length - concurrent.idxx; },
+        ...staticProps
+      },
+      total: {
+        get() { return concurrent.idxArg.length; },
+        ...staticProps
+      },
     });
   }
 }

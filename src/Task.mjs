@@ -28,7 +28,7 @@ export function Task(ctx) {
       if (ctx.done)
         break;
       const localIdx = ctx.idxx++;
-      ctx.log(`[${ctx.jobname} ${c}]: ${item}`);
+      ctx.log(`[SLOT ${c}]: ${item}`);
       const meta = { idx: ctx.idxx, done: ctx.doneitems, active: ctx.active, idxArg: ctx.idxArg, results: [].concat(ctx.results), signal: controller.signal, worker: c };
       if (ctx.idxArg.length) {
         meta.waiting = ctx.idxArg.length - ctx.idxx;
@@ -40,15 +40,14 @@ export function Task(ctx) {
       } catch (e) {
         ctx.errors[localIdx] = e;
         --ctx.active; // we're throwing which means, this task will stop processing
-
         // we don't increase doneitems, as the item has errored and isn't done
-        if (ctx.fn.destroy) {
+        if (ctx.fn.destroy) { // we also invoke cleanup code, if defined
           ctx.fn.destroy({ worker: c, error: e });
         }
-        if (ctx.iterator.throw) {
+        if (ctx.iterator.throw) { // if the iterator can be set to done, we set it to done with error
           ctx.iterator.throw(e);
         }
-        throw e;
+        throw e; // we re-throw the error and let it bubble up, right to the top
       }
       ctx.doneitems++;
       ctx.log(`${ctx.doneitems}${ctx.idxArg.length ? ` of ${ctx.idxArg.length}` : ''} done`);

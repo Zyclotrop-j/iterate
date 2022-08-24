@@ -93,10 +93,6 @@ export default test => {
     assert.equal(ProcessConcurrently[Symbol.species], Promise);
   });
 
-
-
-
-
   // actual func
   test('iterate array', async function() {
       const arr = [1, 2, 3];
