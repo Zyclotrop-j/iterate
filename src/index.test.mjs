@@ -417,22 +417,46 @@ test('pause and resume', async function() {
       }, 5);
     },
     () => {},
+    () => {
+      prom.concurrency = 10;
+    },
     () => {},
-    () => {},
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
   ];
   let called = 0;
-  const prom = ProcessConcurrently(x => {
-    x();
+  const fn = function (x) {
+    x && x();
     called++;
     return Promise.resolve(x);
-  }, arr, { log: noop, concurrency: 2 });
-  
-  await Promise.resolve();
-  console.log(prom.valueOf());
+  };
+  let init = 0;
+  fn.init = () => {
+    init++;
+  };
+  const prom = ProcessConcurrently(fn, arr, { log: noop, concurrency: 2 });
+  await Promise.resolve(); // wait until the first job is runing
+  assert.equal(prom.concurrency, 0);
+  assert.equal(prom.active, 1); // the first job is finishing
+  await new Promise(res => setTimeout(res, 2)); // wait until the first job has run and paused things
+  assert.equal(prom.concurrency, 0);
+  assert.equal(prom.active, 0);
   const result = await prom;
-  console.log("@@@@@@@@@", result)
   assert.deepEqual(result, arr);
-  assert.equal(called, 4)
+  assert.equal(called, arr.length)
+  assert.equal(init, 2 + 0 + 1 + (10 - 1)); // first, goes up to two, as per concurrency setting, then scaled back to 0, then scaled to 1, then scaled to 10
 });
 
 !(async function() {

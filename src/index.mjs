@@ -116,7 +116,7 @@ function ProcessConcurrently(fn, idxArg, {
     idxArg,
     fn,
   };
-  const unpausenoop = () => {concurrent.log('Already unpaused - this is a noop')}
+  const unpausenoop = () => {};
   let unpause = unpausenoop;
   const pause = () => {
   	return new Promise(res => {
@@ -135,7 +135,7 @@ function ProcessConcurrently(fn, idxArg, {
     while(!concurrent.done) {
       await Promise.all(concurrent.jobs.map(({promise}) => promise));
       await Promise.all(concurrent.oldTasks.map(({promise}) => promise));
-      while(!concurrent.done) {
+      if(!concurrent.done) {
         await pause();
       }
     }
@@ -161,6 +161,7 @@ function ProcessConcurrently(fn, idxArg, {
         log(`Scaled up to ${newValue}`)
       }
       if(isPaused) {
+        log('unpausing')
         unpause(); // resolve the promise that blocks checking job-complesion
       }
     },
