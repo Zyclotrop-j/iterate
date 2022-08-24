@@ -6,37 +6,71 @@ function isIterable(obj) {
   return typeof obj[Symbol.iterator] === 'function';
 }
 
+const handler={construct(){return handler}};
+function isConstructable(x) {
+    try{
+        return !!(new (new Proxy(x,handler))())
+    }catch(e){
+        return false
+    }
+}
+
 function Task(ctx) {
     const c = ctx.jobs.length;
     const controller = new AbortController();
     this.abortController = controller;
+    let fn = ctx.fn;
+    if(isConstructable(ctx.fn)) {
+      try {
+        const inst = new ctx.fn({ signal: controller.signal, worker: c });
+        if(inst.run) {
+          fn = inst.run.bind(inst);
+        }
+      } catch(e) {}
+    }
     this.promise = (async () => {
         if(ctx.done) { // already done, no need to create another slot
             return;
         }
         await Promise.resolve(); // next tick
+        ++ctx.active;
+        if(ctx.fn.init) {
+          ctx.fn.init({ signal: controller.signal, worker: c });
+        }
         while(!ctx.done && !controller.signal.aborted) {
             const {value: item, done: d} = ctx.iterator.next(); // iterator protocol
             ctx.done ||= d;
-            if(ctx.done) return;
+            if(ctx.done) break;
             const localIdx = ctx.idxx++;
             ctx.log(`[${ctx.jobname} ${c}]: ${item}`);
-            const meta = { idx: ctx.idxx, done: ctx.doneitems, active: ctx.active, idxArg: ctx.idxArg, results: [].concat(ctx.results), signal: controller.signal };
+            const meta = { idx: ctx.idxx, done: ctx.doneitems, active: ctx.active, idxArg: ctx.idxArg, results: [].concat(ctx.results), signal: controller.signal, worker: c };
             if(ctx.idxArg.length) {
                 meta.waiting = ctx.idxArg.length - ctx.idxx;
                 meta.total = ctx.idxArg.length;
             }
             try {
-                const result = await ctx.fn(...ctx.applyArgs(item, ctx.commonArgs, meta));
+                const result = await fn(...ctx.applyArgs(item, ctx.commonArgs, meta));
                 ctx.results[localIdx] = result;
             } catch(e) {
-                ctx.errors[localIdx] = result;
+                ctx.errors[localIdx] = e;
                 --ctx.active; // we're throwing which means, this task will stop processing
                 // we don't increase doneitems, as the item has errored and isn't done
+                if(ctx.fn.destroy) {
+                  ctx.fn.destroy({ worker: c });
+                }
+                if(ctx.iterator.throw) {
+                  ctx.iterator.throw(e);
+                }
                 throw e;
             }
             ctx.doneitems++;
             ctx.log(`${ctx.doneitems}${ctx.idxArg.length ? ` of ${ctx.idxArg.length}` : ''} done`)
+        }
+        if(ctx.iterator.return) {
+          ctx.iterator.return();
+        }
+        if(ctx.fn.destroy) {
+          ctx.fn.destroy({ worker: c });
         }
         --ctx.active;
     })();
@@ -63,7 +97,7 @@ function ProcessConcurrently(fn, idxArg, {
     throw new Error(`'concurrency' must be > 0! Found ${concurrency}`);
   }
   if(!isIterable(idxArg)) {
-    throw new Error(`'idxArg' must be iterable! Found ${concurrency}`);
+    throw new Error(`'idxArg' must be iterable! Found ${idxArg}`);
   }
   const concurrent = {
     results: [],
@@ -77,6 +111,7 @@ function ProcessConcurrently(fn, idxArg, {
     iterator: idxArg[Symbol.iterator](),
     log,
     applyArgs,
+    commonArgs,
     jobname,
     idxArg,
     fn,
@@ -112,14 +147,18 @@ function ProcessConcurrently(fn, idxArg, {
     set(newValue) {
       const isPaused = concurrent.jobs.length < 1;
       if(Math.max(newValue, 0) < concurrent.jobs.length) {
+        log(`Scaling down to ${Math.max(newValue, 0)}`)
         while(concurrent.jobs.length > newValue) {
           const oldTask = concurrent.jobs.pop()
           oldTask.abortController.abort();
           concurrent.oldTasks.push(oldTask);
         }
+        log(`Scaled down to ${Math.max(newValue, 0)}`)
       } else if(newValue > concurrent.jobs.length) {
+        log(`Scaling up to ${newValue}`)
         const newTasks = newValue - concurrent.jobs.length;
         Array.from({ length: newTasks }).map(() => new Task(concurrent));
+        log(`Scaled up to ${newValue}`)
       }
       if(isPaused) {
         unpause(); // resolve the promise that blocks checking job-complesion
@@ -129,7 +168,7 @@ function ProcessConcurrently(fn, idxArg, {
     configurable: false
   });
   Object.defineProperty(this, 'valueOf', {
-    get() { return loop; },
+    get() { return () => loop; },
     enumerable: false,
     configurable: false
   });
@@ -144,6 +183,11 @@ function ProcessConcurrently(fn, idxArg, {
     get() {  return (catchFn) => {
     	loop.catch(catchFn);
     }; },
+    enumerable: false,
+    configurable: false
+  });
+  Object.defineProperty(this, Symbol.species, {
+    get() {  return Promise; },
     enumerable: false,
     configurable: false
   });
@@ -167,8 +211,13 @@ function ProcessConcurrently(fn, idxArg, {
     enumerable: false,
     configurable: false
   });
-  Object.defineProperty(this, 'hasWaiting', {
+  Object.defineProperty(this, 'running', {
     get() {  return !concurrent.done },
+    enumerable: false,
+    configurable: false
+  });
+  Object.defineProperty(this, 'errors', {
+    get() {  return concurrent.errors },
     enumerable: false,
     configurable: false
   });
@@ -185,17 +234,10 @@ function ProcessConcurrently(fn, idxArg, {
     });
   }
 };
+Object.defineProperty(ProcessConcurrently, Symbol.species, {
+  get() {  return Promise; },
+  enumerable: false,
+  configurable: false
+});
 
-
-// test
-const f = (x) => new Promise(res => setTimeout(() => res(x), 100)); // sample fn
-(async () => {
-	const arr = [1, 2, 3];
-  const qq = ProcessConcurrently(f, arr);
-  arr.push(...Array.from({length: 20}).map((_, idx) => idx+1+3));
-  console.log('qq', qq);
-	const q = await qq;
-  arr.push(5);
-  console.log('q', q);
-	
-})();
+export default ProcessConcurrently;

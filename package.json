@@ -1,0 +1,25 @@
+{
+  "devDependencies": {
+    "baretest": "^2.0.0"
+  },
+  "name": "iterate",
+  "version": "1.0.0",
+  "main": "index.js",
+  "dependencies": {
+    "barecolor": "^1.0.1"
+  },
+  "scripts": {
+    "test": "node test.mjs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Zyclotrop-j/iterate.git"
+  },
+  "author": "Jannes Mingram <jannes@mingram.net>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/Zyclotrop-j/iterate/issues"
+  },
+  "homepage": "https://github.com/Zyclotrop-j/iterate#readme",
+  "description": ""
+}
