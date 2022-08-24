@@ -1,6 +1,8 @@
 {
   "devDependencies": {
-    "baretest": "^2.0.0"
+    "baretest": "^2.0.0",
+    "c8": "^7.12.0",
+    "nyc": "^15.1.0"
   },
   "name": "iterate",
   "version": "1.0.0",
@@ -9,7 +11,8 @@
     "barecolor": "^1.0.1"
   },
   "scripts": {
-    "test": "node test.mjs"
+    "test": "node test.mjs",
+    "coverage": "c8 -r lcov -r text --report-dir ./.c8-report yarn test"
   },
   "repository": {
     "type": "git",

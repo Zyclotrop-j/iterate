@@ -1,4 +1,4 @@
-function isIterable(obj) {
+export function isIterable(obj) {
   // checks for null and undefined
   if (obj == null) {
     return false;
@@ -7,7 +7,7 @@ function isIterable(obj) {
 }
 
 const handler={construct(){return handler}};
-function isConstructable(x) {
+export function isConstructable(x) {
     try{
         return !!(new (new Proxy(x,handler))())
     }catch(e){
@@ -29,10 +29,10 @@ function Task(ctx) {
       } catch(e) {}
     }
     this.promise = (async () => {
-        if(ctx.done) { // already done, no need to create another slot
-            return;
-        }
         await Promise.resolve(); // next tick
+        if(ctx.done) { // already done, no need to create another slot
+          return;
+        }
         ++ctx.active;
         if(ctx.fn.init) {
           ctx.fn.init({ signal: controller.signal, worker: c });
@@ -56,7 +56,7 @@ function Task(ctx) {
                 --ctx.active; // we're throwing which means, this task will stop processing
                 // we don't increase doneitems, as the item has errored and isn't done
                 if(ctx.fn.destroy) {
-                  ctx.fn.destroy({ worker: c });
+                  ctx.fn.destroy({ worker: c, error: e });
                 }
                 if(ctx.iterator.throw) {
                   ctx.iterator.throw(e);
@@ -94,10 +94,10 @@ function ProcessConcurrently(fn, idxArg, {
     });
   }
   if(concurrency <= 0) {
-    throw new Error(`'concurrency' must be > 0! Found ${concurrency}`);
+    throw new TypeError(`'concurrency' must be > 0! Found ${concurrency}`);
   }
   if(!isIterable(idxArg)) {
-    throw new Error(`'idxArg' must be iterable! Found ${idxArg}`);
+    throw new TypeError(`'idxArg' must be iterable! Found ${idxArg}`);
   }
   const concurrent = {
     results: [],

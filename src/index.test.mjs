@@ -1,15 +1,124 @@
 import baretest from 'baretest';
 import assert from 'node:assert';
 
-import ProcessConcurrently from './index.mjs';
+import ProcessConcurrently, { isIterable, isConstructable } from './index.mjs';
 
 const test = baretest('ProcessConcurrently');
 
+// helpers
 const noop = () => null;
-
-// test
 const f = (x) => new Promise(res => setTimeout(() => res(x), 0)); // sample fn
 
+// ensure helpers are working
+test('isIterable is working', async function() {
+  
+  assert.equal(isIterable('') , true);
+  assert.equal(isIterable([]) , true);
+  assert.equal(isIterable(new Set()) , true);
+  assert.equal(isIterable(new Map()) , true);
+  assert.equal(isIterable({[Symbol.iterator]: function() {}}) , true);
+
+  assert.equal(isIterable({}) , false);
+  assert.equal(isIterable(function() {}) , false);
+  assert.equal(isIterable(1) , false);
+  assert.equal(isIterable(0) , false);
+  assert.equal(isIterable(true) , false);
+  assert.equal(isIterable(false) , false);
+  assert.equal(isIterable(undefined) , false);
+  assert.equal(isIterable(null) , false);
+  assert.equal(isIterable({[Symbol.iterator]: null}) , false);
+});
+test('isConstructable is working', async function() {
+  assert.equal(isConstructable('') , false);
+  assert.equal(isConstructable([]) , false);
+  assert.equal(isConstructable(new Set()) , false);
+  assert.equal(isConstructable(new Map()) , false);
+  assert.equal(isConstructable({[Symbol.iterator]: function() {}}) , false);
+  assert.equal(isConstructable({}) , false);
+  assert.equal(isConstructable(1) , false);
+  assert.equal(isConstructable(0) , false);
+  assert.equal(isConstructable(true) , false);
+  assert.equal(isConstructable(false) , false);
+  assert.equal(isConstructable(undefined) , false);
+  assert.equal(isConstructable(null) , false);
+  assert.equal(isConstructable({[Symbol.iterator]: null}) , false);
+
+  assert.equal(isConstructable(function() {}) , true);
+  assert.equal(isConstructable(class{}) , true);
+})
+
+test('negative concurrency', async function() {
+  const arr = [1, 2, 3];
+  assert.throws(
+    () => {
+      ProcessConcurrently(f, arr, { log: noop, concurrency: -1 })
+    },
+    {
+      name: 'TypeError',
+      message: "'concurrency' must be > 0! Found -1",
+    }
+  );
+});
+test('non-iterable idxArg', async function() {
+  assert.throws(
+    () => {
+      ProcessConcurrently(f, undefined, { log: noop })
+    },
+    {
+      name: 'TypeError',
+      message: "'idxArg' must be iterable! Found undefined",
+    }
+  );
+  assert.throws(
+    () => {
+      ProcessConcurrently(f, null, { log: noop })
+    },
+    {
+      name: 'TypeError',
+      message: "'idxArg' must be iterable! Found null",
+    }
+  );
+  assert.throws(
+    () => {
+      ProcessConcurrently(f, false, { log: noop })
+    },
+    {
+      name: 'TypeError',
+      message: "'idxArg' must be iterable! Found false",
+    }
+  );
+  assert.throws(
+    () => {
+      ProcessConcurrently(f, true, { log: noop })
+    },
+    {
+      name: 'TypeError',
+      message: "'idxArg' must be iterable! Found true",
+    }
+  );
+  assert.throws(
+    () => {
+      ProcessConcurrently(f, 1, { log: noop })
+    },
+    {
+      name: 'TypeError',
+      message: "'idxArg' must be iterable! Found 1",
+    }
+  );
+  assert.throws(
+    () => {
+      ProcessConcurrently(f, {}, { log: noop })
+    },
+    {
+      name: 'TypeError',
+      message: "'idxArg' must be iterable! Found [object Object]",
+    }
+  );
+});
+
+
+
+// actual func
 test('iterate array', async function() {
     const arr = [1, 2, 3];
     const result = await ProcessConcurrently(f, arr, { log: noop });
@@ -205,6 +314,18 @@ test('fn concurrency 5', async function() {
   });
   assert.deepEqual(result, arr);
 });
+test('fn concurrency 100', async function() {
+  const arr = [1, 2, 3, 4, 5, 6];
+  const fn = (x, common, meta) => {
+    assert.equal(meta.worker, x - 1);
+    return x;
+  }
+  const result = await ProcessConcurrently(fn, arr, {
+    concurrency: 100,
+    log: noop,
+  });
+  assert.deepEqual(result, arr);
+});
 test('fn is constructor', async function() {
   const arr = [0, 1, 2, 3, 4, 5, 6, 7];
   let constructorCalled = 0;
@@ -258,16 +379,51 @@ test('iterate throwing fn', async function() {
   const error = {};
   let prom;
   let caught = false;
+  let catchClause = false;
   try {
     prom = ProcessConcurrently(() => {
       throw error;
     }, [1], { log: noop });
+    prom.catch((e) => {
+      catchClause = true;
+      assert.equal(e,error);
+    });
     await prom;
   } catch(e) {
     assert.equal(e, error);
     caught = true;
   }
   assert.equal(caught, true);
+  assert.equal(catchClause, true);
+  assert.deepEqual(prom.errors, [error]);
+});
+test('iterate throwing fn', async function() {
+  const error = {};
+  let prom;
+  let caught = false;
+  let destroyCalled = false;
+  const fn = function() {
+    throw error;
+  }
+  fn.destroy = (e) => {
+    destroyCalled = true;
+    assert.deepEqual(e, { worker: 0, error })
+  }
+  const iter = function*() {
+    yield 1;
+    yield 2;
+  }
+  const iterInst = iter();
+  try {
+    prom = ProcessConcurrently(fn, iterInst, { log: noop });
+    await prom;
+  } catch(e) {
+    assert.equal(e, error);
+    caught = true;
+  }
+  assert.equal(iterInst.next().done, true);
+  assert.equal(caught, true);
+  assert.equal(destroyCalled, true);
   assert.deepEqual(prom.errors, [error]);
 });
 test('iterate Promise-rejecting fn', async function() {
@@ -459,6 +615,4 @@ test('pause and resume', async function() {
   assert.equal(init, 2 + 0 + 1 + (10 - 1)); // first, goes up to two, as per concurrency setting, then scaled back to 0, then scaled to 1, then scaled to 10
 });
 
-!(async function() {
-  await test.run()
-})()
+export default test;
