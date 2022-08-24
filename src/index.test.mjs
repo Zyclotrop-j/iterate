@@ -115,6 +115,24 @@ test('non-iterable idxArg', async function() {
     }
   );
 });
+test('test default logging', async function() {
+  const old = global.console;
+  let consoleTriggered = false;
+  global.console = { log(x) {
+    assert(x);
+    consoleTriggered = true;
+  } };
+  const arr = [1, 2, 3];
+  const result = await ProcessConcurrently(f, arr);
+  assert.deepEqual(result, arr);
+  assert(consoleTriggered);
+  global.console = old;
+});
+test('ensure ProcessConcurrently is promise', async function() {
+  assert.equal(ProcessConcurrently[Symbol.species], Promise);
+});
+
+
 
 
 
@@ -230,9 +248,6 @@ test('iterate custom iterator', async function() {
   const result = await ProcessConcurrently(f, makeRangeIterator(0, arr.length), { log: noop });
   assert.deepEqual(result, arr);
 });
-
-
-
 test('fn function args', async function() {
   const sample = {};
   const arr = [1, 2, 3];
@@ -388,7 +403,7 @@ test('iterate throwing fn', async function() {
       catchClause = true;
       assert.equal(e,error);
     });
-    await prom;
+    await prom.valueOf();
   } catch(e) {
     assert.equal(e, error);
     caught = true;
@@ -396,6 +411,7 @@ test('iterate throwing fn', async function() {
   assert.equal(caught, true);
   assert.equal(catchClause, true);
   assert.deepEqual(prom.errors, [error]);
+  assert.equal(prom[Symbol.species], Promise);
 });
 test('iterate throwing fn', async function() {
   const error = {};
