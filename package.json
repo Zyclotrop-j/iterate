@@ -28,5 +28,6 @@
     "url": "https://github.com/Zyclotrop-j/iterate/issues"
   },
   "homepage": "https://github.com/Zyclotrop-j/iterate#readme",
-  "description": ""
+  "description": "Like `await Promise.all(mytasks.map(async (item) => ....))`, but with super-powers",
+  "keywords": ["async","iterator","map","reduce","array","object","each","iterable","promise","pool","batch"]
 }
