@@ -3,5 +3,5 @@ export function isIterable(obj) {
   if (obj == null) {
     return false;
   }
-  return typeof obj[Symbol.iterator] === 'function';
+  return typeof obj[Symbol.iterator] === 'function' || typeof obj[Symbol.asyncIterator] === 'function';
 }

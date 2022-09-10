@@ -1,4 +1,6 @@
+import { getLength } from "./getLength.mjs";
 import { isConstructable } from "./isConstructable.mjs";
+import { tryGetIn } from "./tryGetIn.mjs";
 
 export function Task(ctx) {
   const c = ctx.jobs.length;
@@ -23,16 +25,31 @@ export function Task(ctx) {
       ctx.fn.init({ signal: controller.signal, worker: c });
     }
     while (!ctx.done && !controller.signal.aborted) {
-      const { value: item, done: d } = ctx.iterator.next(); // iterator protocol
+      let nextValue = ctx.iterator.next(); // iterator protocol
+      if(ctx.isAsyncIter) {
+        nextValue = await nextValue;
+      }
+      const { value: item, done: d } = nextValue;
       ctx.done ||= d;
       if (ctx.done)
         break;
       const localIdx = ctx.idxx++;
       ctx.log(`[SLOT ${c}]: ${item}`);
-      const meta = { idx: ctx.idxx, done: ctx.doneitems, active: ctx.active, idxArg: ctx.idxArg, results: [].concat(ctx.results), signal: controller.signal, worker: c };
-      if (ctx.idxArg.length) {
-        meta.waiting = ctx.idxArg.length - ctx.idxx;
-        meta.total = ctx.idxArg.length;
+      const meta = { 
+        get idx() { return ctx.idxx; }, 
+        get done() { return ctx.doneitems; }, 
+        get active() { return ctx.active; }, 
+        get idxArg() { return ctx.idxArg; }, 
+        get results() { return [].concat(ctx.results); }, 
+        signal: controller.signal, 
+        get worker() { return c; }
+      };
+      const isSet = ctx.idxArg instanceof Set;
+      if (isSet || typeof ctx.idxArg === 'string' || tryGetIn('length', ctx.idxArg) || ctx.idxArg.length) {
+        Object.defineProperties(meta, {
+          waiting: { get() { return getLength(isSet, ctx) - ctx.idxx; }, enumerable: true, configurable: true },
+          total: { get() { return getLength(isSet, ctx); }, enumerable: true, configurable: true },
+        });
       }
       try {
         const result = await fn(...ctx.applyArgs(item, ctx.commonArgs, meta));

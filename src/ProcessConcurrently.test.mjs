@@ -82,6 +82,12 @@ export default test => {
     global.console = { log(x) {
       assert(x);
       consoleTriggered = true;
+    }, info(...args) {
+      old.info(...args)
+    }, error(...args) {
+      old.error(...args)
+    }, warn(...args) {
+      old.warn(...args)
     } };
     const arr = [1, 2, 3];
     const result = await ProcessConcurrently(f, arr);
@@ -142,9 +148,28 @@ export default test => {
     const result = await ProcessConcurrently(f, generator(), { log: noop });
     assert.deepEqual(result, arr);
   });
+  test('iterate async generator', async function() {
+    const arr = [1, 2, 3];
+    async function* generator() {
+      yield arr[0];
+      await Promise.resolve();
+      yield arr[1];
+      await Promise.resolve();
+      yield arr[2];
+      await Promise.resolve();
+    }
+    const result = await ProcessConcurrently(f, generator(), { log: noop });
+    assert.deepEqual(result, arr);
+  });
   test('iterate empty generator', async function() {
     const arr = [];
     function* generator() {}
+    const result = await ProcessConcurrently(f, generator(), { log: noop });
+    assert.deepEqual(result, arr);
+  });
+  test('iterate async generator', async function() {
+    const arr = [];
+    async function* generator() {}
     const result = await ProcessConcurrently(f, generator(), { log: noop });
     assert.deepEqual(result, arr);
   });
@@ -153,6 +178,18 @@ export default test => {
     function* generator() {
       const a = [...arr];
       while(a.length) {
+        yield a.shift();
+      }
+    }
+    const result = await ProcessConcurrently(f, generator(), { log: noop });
+    assert.deepEqual(result, arr);
+  });
+  test('iterate async generator', async function() {
+    const arr = Array.from({length: 100}).map((_, idx) => idx);
+    async function* generator() {
+      const a = [...arr];
+      while(a.length) {
+        await Promise.resolve();
         yield a.shift();
       }
     }
@@ -205,6 +242,32 @@ export default test => {
     const result = await ProcessConcurrently(f, makeRangeIterator(0, arr.length), { log: noop });
     assert.deepEqual(result, arr);
   });
+  test('iterate custom async iterator', async function() {
+    function makeRangeIterator(start = 0, end = 4, step = 1) {
+      let nextIndex = start;
+      let iterationCount = 0;
+      const rangeIterator = {
+        async next() {
+          await Promise.resolve();
+          let result;
+          if (nextIndex < end) {
+            result = { value: nextIndex, done: false };
+            nextIndex += step;
+            iterationCount++;
+            return result;
+          }
+          return { value: iterationCount, done: true };
+        },
+        [Symbol.asyncIterator] () {
+          return this;
+        },
+      };
+      return rangeIterator;
+    }
+    const arr = [0, 1, 2, 3];
+    const result = await ProcessConcurrently(f, makeRangeIterator(0, arr.length), { log: noop });
+    assert.deepEqual(result, arr);
+  });
   test('fn function args', async function() {
     const sample = {};
     const arr = [1, 2, 3];
@@ -217,7 +280,7 @@ export default test => {
       assert(meta.signal instanceof AbortSignal, 'meta.signal instanceof AbortSignal');
       delete meta.signal;
       waiting--;
-      assert.deepEqual(meta, {
+      assert.deepEqual({...meta}, {
         active: active,
         done: done,
         idx: idx,

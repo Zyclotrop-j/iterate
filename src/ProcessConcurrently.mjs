@@ -27,7 +27,11 @@ export function ProcessConcurrently(fn, idxArg, {
   if (!isIterable(idxArg)) {
     throw new TypeError(`'idxArg' must be iterable! Found ${idxArg}`);
   }
+  const asyncIter = idxArg[Symbol.asyncIterator]?.bind(idxArg);
+  const syncIter = idxArg[Symbol.iterator]?.bind(idxArg);
+  const iter = syncIter ? syncIter() : asyncIter();
   const concurrent = {
+    isAsyncIter: !syncIter && asyncIter,
     results: [],
     errors: [],
     jobs: [],
@@ -36,7 +40,7 @@ export function ProcessConcurrently(fn, idxArg, {
     idxx: 0,
     active: 0,
     done: false,
-    iterator: idxArg[Symbol.iterator](), // magic is here
+    iterator: iter, // magic is here
     log,
     applyArgs,
     commonArgs,

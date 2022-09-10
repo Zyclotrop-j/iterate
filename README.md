@@ -90,7 +90,8 @@ const result = await ProcessConcurrently(async (item) => {
 
 ## Examples
 
-Call an api in the browser.
+### Call an api in the browser.
+
 ```
 const fn = (item, { url }) => {
   return fetch(`${url}${item}`)
@@ -104,7 +105,8 @@ const result = await ProcessConcurrently(fn, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
 console.log(result);
 ```
 
-File-system in nodejs.
+### File-system in nodejs.
+
 ```
 const fs = require('node:fs/promises');
 
@@ -119,16 +121,16 @@ const result = await ProcessConcurrently(fn, ['foo', 'bar'], {
 console.log(result);
 ```
 
-Create more tasks from within the tasks.
+### Use an iterator.
+
 ```
 const fs = require('node:fs');
 const fsp = require('node:fs/promise');
-const path = require('node:path');
 
 const upload = async (file, fielname, target) => {
   ....
 }
-const fn = (filename, { target, source }) => {
+const fn = async (filename, { target, source }) => {
   const file = await fsp.readFile(`${source}${filename}`);
   const isOK = await upload(file, filename, target);
   return isOK;
@@ -136,10 +138,44 @@ const fn = (filename, { target, source }) => {
 
 const iterateDir = function*(dir) {
   for(const fileOrDir of fs.readdirSync(dir)) {
-    if (fs.statSync(p).isDirectory()) {
-      return yield* iterateDir(p);
+    if (fs.statSync(fileOrDir).isDirectory()) {
+      return yield* iterateDir(fileOrDir);
     } else {
-      yield p;
+      yield fileOrDir;
+    }    
+  }
+};
+
+const result = await ProcessConcurrently(fn, iterateDir('./source'), {
+  commonArgs: {
+    target: 'https://myapi/upload',
+    source: './source'
+  }
+});
+console.log(result);
+```
+
+### Use an async iterator.
+
+```
+const fs = require('node:fs');
+const fsp = require('node:fs/promise');
+
+const upload = async (file, fielname, target) => {
+  ....
+}
+const fn = async (filename, { target, source }) => {
+  const file = await fsp.readFile(`${source}${filename}`);
+  const isOK = await upload(file, filename, target);
+  return isOK;
+};
+
+const iterateDir = async function*(dir) {
+  for(const fileOrDir of await fsp.readdir(dir)) {
+    if (fs.statSync(fileOrDir).isDirectory()) {
+      return yield* iterateDir(fileOrDir);
+    } else {
+      yield fileOrDir;
     }    
   }
 };
@@ -153,7 +189,8 @@ const result = await ProcessConcurrently(fn, iterateDir('./source'), {
 console.log(result);
 ```
 
-Using meta-information.
+### Using meta-information.
+
 ```
 const fn = (item, { progressIndicator }, meta) => {
   progressIndicator.innerHTML = `Progress: ${(meta.done / meta.total * 100)}%`;
