@@ -1,18 +1,22 @@
 {
   "devDependencies": {
+    "barecolor": "^1.0.1",
     "baretest": "^2.0.0",
     "c8": "^7.12.0",
+    "esbuild": "^0.15.7",
     "nyc": "^15.1.0"
   },
   "name": "iterate",
   "version": "1.0.0",
-  "main": "index.js",
-  "dependencies": {
-    "barecolor": "^1.0.1"
-  },
+  "main": "src/index",
+  "dependencies": {},
   "scripts": {
     "test": "node test.mjs",
-    "coverage": "c8 -r lcov -r text --report-dir ./.c8-report yarn test"
+    "coverage": "c8 -r lcov -r text --report-dir ./.c8-report yarn test",
+    "build:esm": "esbuild src/index.mjs --bundle --format=esm --sourcemap --outfile=build/index.mjs",
+    "build:cjs": "esbuild src/index.mjs --bundle --format=cjs --sourcemap --outfile=build/index.cjs",
+    "build:global": "esbuild src/index.mjs --bundle --format=iife --global-name=ProcessConcurrently --sourcemap --outfile=build/index.js",
+    "build": "yarn build:esm && yarn build:cjs && yarn build:global"
   },
   "repository": {
     "type": "git",
