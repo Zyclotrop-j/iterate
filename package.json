@@ -8,7 +8,7 @@
     "semantic-release": "^19.0.5"
   },
   "name": "iterate-async",
-  "version": "1.0.1",
+  "version": "0.0.0-development",
   "main": "build/index",
   "dependencies": {},
   "scripts": {
@@ -17,11 +17,12 @@
     "build:esm": "esbuild src/index.mjs --bundle --format=esm --sourcemap --outfile=build/index.mjs",
     "build:cjs": "esbuild src/index.mjs --bundle --format=cjs --sourcemap --outfile=build/index.cjs",
     "build:global": "esbuild src/index.mjs --bundle --format=iife --global-name=ProcessConcurrently --sourcemap --outfile=build/index.js",
-    "build": "yarn build:esm && yarn build:cjs && yarn build:global"
+    "build": "yarn build:esm && yarn build:cjs && yarn build:global",
+    "semantic-release": "semantic-release"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Zyclotrop-j/iterate.git"
+    "url": "https://github.com/Zyclotrop-j/iterate.git"
   },
   "author": "Jannes Mingram <jannes@mingram.net>",
   "license": "MIT",
