@@ -6,7 +6,7 @@
     "esbuild": "^0.15.7",
     "nyc": "^15.1.0"
   },
-  "name": "asynciterate",
+  "name": "iterate-async",
   "version": "1.0.0",
   "main": "build/index",
   "dependencies": {},
