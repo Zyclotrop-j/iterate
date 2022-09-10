@@ -1,7 +1,7 @@
 # iterate-async
 
 Iteration of iterables using a async function with concurrency
- 
+
 ## Example
 
 ```
