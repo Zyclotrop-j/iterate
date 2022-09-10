@@ -10,7 +10,6 @@
   "name": "iterate-async",
   "version": "0.0.0-development",
   "main": "build/index",
-  "dependencies": {},
   "scripts": {
     "test": "node test.mjs",
     "coverage": "c8 -r lcov -r text --report-dir ./.c8-report yarn test",
@@ -22,7 +21,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/Zyclotrop-j/iterate.git"
+    "url": "git+https://github.com/Zyclotrop-j/iterate.git"
   },
   "author": "Jannes Mingram <jannes@mingram.net>",
   "license": "MIT",
