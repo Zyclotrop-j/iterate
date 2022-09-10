@@ -17,7 +17,7 @@
     "build:cjs": "esbuild src/index.mjs --bundle --format=cjs --sourcemap --outfile=build/index.cjs",
     "build:global": "esbuild src/index.mjs --bundle --format=iife --global-name=ProcessConcurrently --sourcemap --outfile=build/index.js",
     "build": "yarn build:esm && yarn build:cjs && yarn build:global",
-    "semantic-release": "semantic-release"
+    "semantic-release": "rm /home/runner/work/_temp/.npmrc && semantic-release"
   },
   "repository": {
     "type": "git",
