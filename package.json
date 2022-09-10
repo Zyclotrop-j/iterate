@@ -4,8 +4,7 @@
     "baretest": "^2.0.0",
     "c8": "^7.12.0",
     "esbuild": "^0.15.7",
-    "nyc": "^15.1.0",
-    "semantic-release": "^19.0.5"
+    "nyc": "^15.1.0"
   },
   "name": "iterate-async",
   "version": "1.0.2",
@@ -17,7 +16,7 @@
     "build:cjs": "esbuild src/index.mjs --bundle --format=cjs --sourcemap --outfile=build/index.cjs",
     "build:global": "esbuild src/index.mjs --bundle --format=iife --global-name=ProcessConcurrently --sourcemap --outfile=build/index.js",
     "build": "yarn build:esm && yarn build:cjs && yarn build:global",
-    "semantic-release": "rm /home/runner/work/_temp/.npmrc && semantic-release"
+    "semantic-release": "rm /home/runner/work/_temp/.npmrc && npx semantic-release"
   },
   "repository": {
     "type": "git",
