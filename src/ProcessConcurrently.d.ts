@@ -1,4 +1,6 @@
-type IteratorFunction<Q, T extends (...args: any) => any, C> = (item: Q, commonArgs: C, ctx: {
+type AnyFunction = (...args: any) => any;
+
+type RunFunction<Q, T extends AnyFunction, C> = (item: Q, commonArgs: C, ctx: {
     idx: number;
     done: number;
     active: number;
@@ -10,6 +12,16 @@ type IteratorFunction<Q, T extends (...args: any) => any, C> = (item: Q, commonA
     total?: number;
 }) => any;
 
+type RunTime<Q, T extends AnyFunction, C> = {
+    new(): {
+        run: RunFunction<Q, T, C>
+    };
+    init: AnyFunction;
+    destroy: AnyFunction;
+};
+
+type IteratorFunction<Q, T extends AnyFunction, C> = RunFunction<Q, T, C> | RunTime<Q, T, C>;
+
 interface ProcessConcurrentlyReturn<R> {
     result: R;
     done: number;
@@ -17,10 +29,13 @@ interface ProcessConcurrentlyReturn<R> {
     idx: number;
     running: boolean;
     errors: Array<any>;
+    waiting?: number;
+    total?: number;
+    concurrency: number;
 }
 
-export declare function ProcessConcurrently<T extends IteratorFunction<Q, T, C>, Q, C>(fn: T, idxArg: Iterable<Q>, ctx?: {
+export declare function ProcessConcurrently<T extends IteratorFunction<Q, T, C>, Q, C>(fn: T, idxArg: Iterable<Q> | AsyncIterable<Q>, ctx?: {
     commonArgs?: C,
     concurrency?: number,
     log: (message?: any, ...optionalParams: any[]) => void,
-}): ProcessConcurrentlyReturn<ReturnType<T>[]> & Promise<ReturnType<T>[]>;
+}): ProcessConcurrentlyReturn<T extends AnyFunction ? ReturnType<T>[] : T extends RunTime<Q, any, C> ? ReturnType<InstanceType<T>['run']>[] : never> & Promise<T extends AnyFunction ? ReturnType<T>[] : T extends RunTime<Q, any, C> ? ReturnType<InstanceType<T>['run']>[] : never>;
