@@ -4,8 +4,10 @@ Iteration of iterables using a async function with concurrency
  
 ## Example
 
+### ES6 Module
+
 ```
-import ProcessConcurrently from 'ProcessConcurrently';
+import ProcessConcurrently from 'iterate-async';
 
 
 const result = await ProcessConcurrently(async (item) => {
@@ -13,6 +15,20 @@ const result = await ProcessConcurrently(async (item) => {
   return item * 10
 }, [1, 2, 3, 4, 5, 6]);
 // result = [2, 4, 6, 8, 10, 12]
+```
+
+### Common JS
+
+```
+const ProcessConcurrently = require('iterate-async').default; // don't forget the 'default'!
+
+ProcessConcurrently(async (item) => {
+    await Promise.resolve(); // do something async
+    return item * 10;
+}, [1, 2, 3, 4, 5, 6]).then(
+    result => console.log(result)
+    // result = [2, 4, 6, 8, 10, 12]
+);
 ```
 
 ### Options
