@@ -12,7 +12,7 @@ import ProcessConcurrently from 'iterate-async';
 
 const result = await ProcessConcurrently(async (item) => {
   await Promise.resolve(); // do something async
-  return item * 10
+  return item * 2
 }, [1, 2, 3, 4, 5, 6]);
 // result = [2, 4, 6, 8, 10, 12]
 ```
@@ -24,7 +24,7 @@ const ProcessConcurrently = require('iterate-async').default; // don't forget th
 
 ProcessConcurrently(async (item) => {
     await Promise.resolve(); // do something async
-    return item * 10;
+    return item * 2;
 }, [1, 2, 3, 4, 5, 6]).then(
     result => console.log(result)
     // result = [2, 4, 6, 8, 10, 12]
