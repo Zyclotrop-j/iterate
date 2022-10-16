@@ -31,6 +31,28 @@ ProcessConcurrently(async (item) => {
 );
 ```
 
+### Browser
+
+Normally you'd use this with your own bundler with one of the two methods above.
+You can also compile this from source; the full source is ES6 and in the `src` folder.
+The npm bundle includes all builds in the `build` folder. It contains `.mjs` (ES6), `mcjs` (common js) and `.js` ('classic' oldschool js).
+
+When importing into the browser directly, preferably, use the ES6 export - all modern browsers support this!
+
+```
+<script type="module">
+  import ProcessConcurrently from '<your path>/iterate-async/build/index.mjs';
+  ... as abve ...
+</script>
+```
+
+If you need this in the global namespace for some reason, you can use the 'classic' oldschool export.
+
+```
+<script type="javascript" src="<path>/iterate-async/build/index.js"></script>
+// window.ProcessConcurrently is now globally available holding all exports
+```
+
 ### Options
 
 You can configure the behaviour of ProcessConcurrently using options (third argument to ProcessConcurrently).
