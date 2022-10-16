@@ -34,7 +34,7 @@ interface ProcessConcurrentlyReturn<R> {
     concurrency: number;
 }
 
-export declare function ProcessConcurrently<T extends IteratorFunction<Q, T, C>, Q, C>(fn: T, idxArg: Iterable<Q> | AsyncIterable<Q>, ctx?: {
+export declare function ProcessConcurrently<T extends IteratorFunction<Q, T extends AnyFunction ? T : T extends RunTime<Q, any, C> ? InstanceType<T>['run'] : never, C>, Q, C>(fn: T, idxArg: Iterable<Q> | AsyncIterable<Q>, ctx?: {
     commonArgs?: C,
     concurrency?: number,
     log: (message?: any, ...optionalParams: any[]) => void,
