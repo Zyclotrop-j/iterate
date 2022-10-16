@@ -7,8 +7,14 @@
     "nyc": "^15.1.0"
   },
   "name": "iterate-async",
-  "version": "1.0.2",
+  "version": "1.1.2",
   "main": "build/index",
+  "exports": {
+    ".": {
+      "require": "./build/index.cjs",
+      "import": "./build/index.mjs"
+    }
+  },
   "scripts": {
     "test": "node test.mjs",
     "coverage": "c8 -r lcov -r text --report-dir ./.c8-report yarn test",
