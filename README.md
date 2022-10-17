@@ -35,7 +35,7 @@ ProcessConcurrently(async (item) => {
 
 Normally you'd use this with your own bundler with one of the two methods above.
 You can also compile this from source; the full source is ES6 and in the `src` folder.
-The npm bundle includes all builds in the `build` folder. It contains `.mjs` (ES6), `mcjs` (common js) and `.js` ('classic' oldschool js).
+The npm bundle includes all builds in the `build` folder. It contains `.mjs` (ES6), `.cjs` (common js) and `.js` ('classic' oldschool js).
 
 When importing into the browser directly, preferably, use the ES6 export - all modern browsers support this!
 
