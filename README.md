@@ -107,7 +107,7 @@ const result = await ProcessConcurrently(async (item) => {
   await Promise.resolve(); // do something async
   return item * 10
 }, new Set([1, 2, 3, 4, 5, 6]));
-// result = [2, 4, 6, 8, 10, 12]
+// result = [10, 20, 30, 40, 50, 60]
 ```
 
 ```
@@ -123,7 +123,7 @@ const result = await ProcessConcurrently(async (item) => {
   await Promise.resolve(); // do something async
   return item * 10
 }, arr());
-// result = [2, 4, 6, 8, 10, 12]
+// result = [10, 20, 30, 40, 50, 60]
 ```
 
 ## Examples
