@@ -60,15 +60,16 @@ All options are optional. Below you find the defaults.
 
 ```
 const options = {
-  commonArgs: undefined,  // type: any; anything additional you'd like to pass to the processing-function.
+  commonArgs: { foo: 'bar' },  // type: any; anything additional you'd like to pass to the processing-function.
   concurrency = 4,  // default: 4; type = positive integer; how many items are processed at the same time
   log = (...args) => console.log(...args),  //  type = function(...args: any[]): void; logs to global console by default; attach your logger here!
 };
 const fn = async (item, commonArgs) => {
   // commonArgs is whatever you pass in options
+  // e.g. commonArgs = { foo: 'bar' } in this example
   ...
 };
-const result = await ProcessConcurrently(fn, ..., options);
+const result = await ProcessConcurrently(fn, my_iterable, options);
 ```
 
 ### Meta-information and context
@@ -77,7 +78,7 @@ The current progress-information is passed to the process-function as a third ar
 The following context information is available:
 
 ```
-type Ctx = {
+type Meta = {
   idx: number // index of the current item being processed
   done: number // count of items already processed
   active: number // count of items currently processing
@@ -89,7 +90,7 @@ type Ctx = {
   total?: number // total count of items (in any state) - not present if not available, e.g. because arr doesn't have a length
 }
 const fn = async (item, commonArgs, metaInformation) => {
-  // metaInformation has the form of Ctx above
+  // metaInformation has the form of Meta above
   console.log(metaInformation.idxArg); // 1, 2, 3
   console.log(metaInformation.results); // [], [10], [10, 20]
   ...
