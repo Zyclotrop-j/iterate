@@ -60,13 +60,13 @@ All options are optional. Below you find the defaults.
 
 ```
 const options = {
-  commonArgs: { foo: 'bar' },  // type: any; anything additional you'd like to pass to the processing-function.
-  concurrency = 4,  // default: 4; type = positive integer; how many items are processed at the same time
-  log = (...args) => console.log(...args),  //  type = function(...args: any[]): void; logs to global console by default; attach your logger here!
+  commonArgs: undefined,  // type: any; anything additional you'd like to pass to the processing-function.
+  concurrency: 4,  // default: 4; type = positive integer; how many items are processed at the same time
+  log: (...args) => console.log(...args),  //  type = function(...args: any[]): void; logs to global console by default; attach your logger here!
 };
 const fn = async (item, commonArgs) => {
   // commonArgs is whatever you pass in options
-  // e.g. commonArgs = { foo: 'bar' } in this example
+  // e.g. with options.commonArgs = { foo: 'bar' }, this will be { foo: 'bar' }
   ...
 };
 const result = await ProcessConcurrently(fn, my_iterable, options);
@@ -99,6 +99,8 @@ const fn = async (item, commonArgs, metaInformation) => {
 const arr: T[] = [1, 2, 3];
 const result = await ProcessConcurrently(fn, arr, { concurrency: 1 });
 ```
+
+If you are doing multiple async operations within your function and one task might "overtake" another, you can always get the latest status by just reading from metaInformation after each step - the stats returned by metaInformation are always the latest as of the time of when you're reading them!
 
 ### Processing things other than arrays
 
