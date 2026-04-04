@@ -67,7 +67,8 @@ export function Task<Item, Common, Applied extends any[], Result>(this: TaskHand
       const localIdx = ctx.idxx++;
       ctx.log(`[SLOT ${c}]: ${ctx.idxx}`);
       const meta: Meta<Result> = {
-        get idx() { return ctx.idxx; },
+        get idx() { return localIdx; },
+        get idxx() { return ctx.idxx; },
         get done() { return ctx.doneitems; },
         get active() { return ctx.active; },
         get idxArg() { return ctx.idxArg; },
