@@ -15,7 +15,7 @@ export async function createLoop<Item, Common, Applied extends any[], Result>(
     }
   }
   concurrent.log(`Awaiting ${concurrent.jobs.length} jobs to finish`);
-  while (!concurrent.done) {
+  do {
     await Promise.all(
       [...concurrent.oldTasks, ...concurrent.jobs].map(({ promise }) => promise)
     );
@@ -23,7 +23,7 @@ export async function createLoop<Item, Common, Applied extends any[], Result>(
     if (!concurrent.done) {
       await pause();
     }
-  }
+  } while (!concurrent.done)
   concurrent.log('Jobs finished');
   return concurrent.results;
 }
