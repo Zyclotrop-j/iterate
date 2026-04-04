@@ -59,7 +59,7 @@ export function Task<Item, Common, Applied extends any[], Result>(this: TaskHand
       }
       try {
         const spreadArgs = ctx.applyArgs(item, ctx.commonArgs, meta);
-        const result = await fn.apply(fn, spreadArgs) as Result;
+        const result = await (fn as (...args: unknown[]) => unknown).apply(fn, spreadArgs) as Result;
         ctx.results[localIdx] = result;
       } catch (e) {
         ctx.errors[localIdx] = e;
