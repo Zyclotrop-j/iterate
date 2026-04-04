@@ -1,1 +1,0 @@
-export const getLength = (isSet, ctx) => isSet ? ctx.idxArg.size : ctx.idxArg?.length; // if Set, use .size instead

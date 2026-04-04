@@ -1,4 +1,4 @@
-export function isIterable(obj) {
+export function isIterable(obj: unknown) {
   // checks for null and undefined
   if (obj == null) {
     return false;

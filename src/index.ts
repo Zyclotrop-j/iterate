@@ -1,4 +1,4 @@
-import { ProcessConcurrently as ProcessConcurrentlyImport } from "./ProcessConcurrently.mjs";
+import { ProcessConcurrently as ProcessConcurrentlyImport } from "./ProcessConcurrently.js";
 
 export const ProcessConcurrently = ProcessConcurrentlyImport;
 export default ProcessConcurrentlyImport;

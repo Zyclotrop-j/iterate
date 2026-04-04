@@ -1,5 +1,5 @@
-import { getLength } from "./getLength.mjs";
-import { isConstructable } from "./isConstructable.mjs";
+import { getLength } from "./getLength.js";
+import { isConstructable } from "./isConstructable.js";
 import { tryGetIn } from "./tryGetIn.mjs";
 
 export function Task(ctx) {

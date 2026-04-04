@@ -5,7 +5,8 @@
     "baretest": "^2.0.0",
     "c8": "^11.0.0",
     "esbuild": "^0.28.0",
-    "nyc": "^18.0.0"
+    "nyc": "^18.0.0",
+    "tsc": "^2.0.4"
   },
   "name": "iterate-async",
   "version": "1.1.2",
@@ -19,9 +20,9 @@
   "scripts": {
     "test": "node test.mjs",
     "coverage": "c8 -r lcov -r text --report-dir ./.c8-report yarn test",
-    "build:esm": "esbuild src/index.mjs --bundle --format=esm --sourcemap --outfile=build/index.mjs",
-    "build:cjs": "esbuild src/index.mjs --bundle --format=cjs --sourcemap --outfile=build/index.cjs",
-    "build:global": "esbuild src/index.mjs --bundle --format=iife --global-name=ProcessConcurrently --sourcemap --outfile=build/index.js",
+    "build:esm": "esbuild src/index.ts --bundle --format=esm --sourcemap --outfile=build/index.mjs",
+    "build:cjs": "esbuild src/index.ts --bundle --format=cjs --sourcemap --outfile=build/index.cjs",
+    "build:global": "esbuild src/index.ts --bundle --format=iife --global-name=ProcessConcurrently --sourcemap --outfile=build/index.js",
     "build": "yarn build:esm && yarn build:cjs && yarn build:global",
     "semantic-release": "npx semantic-release"
   },
