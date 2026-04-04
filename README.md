@@ -155,8 +155,8 @@ fn.destroy = ({ worker, error }) => { /* tear down; error is set if the worker t
 // As a class — constructor receives { signal, worker }, run() processes each item
 class fn {
   constructor({ signal, worker }) { /* set up */ }
-  static init({ signal, worker })    { /* called before the worker loop starts */ }
-  static destroy({ worker, error })  { /* called when the worker loop ends */ }
+  init({ signal, worker })    { /* called before the worker loop starts */ }
+  destroy({ worker, error })  { /* called when the worker loop ends */ }
   async run(item, common, meta)      { /* processes each item */ }
 }
 
