@@ -202,8 +202,8 @@ Logs:
 CONSTRUCTOR 0
 CONSTRUCTOR 1
 INIT 0
-RUN 1
 INIT 1
+RUN 1
 RUN 2
 RUN 3
 RUN 4
@@ -211,6 +211,9 @@ DESTROY 0
 DESTROY 1
 */
 ```
+
+Note that call order is only guaranteed within slots/instances. That is, within a slot the constructor is guaranteed called first. If any runs happen on this instance, then init is called next followed by one invocation of `run` per task to be execute. Once no more runs are planned for the instance `destroy` is called. Note that destroy is only called if `init` was called! Also note that across instances the order is not guaranteed, e.g., `init` of slot 1 may be called before `constructor` of slot 2. 
+
 
 #### Constructor vs init
 
