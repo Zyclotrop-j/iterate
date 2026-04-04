@@ -26,6 +26,7 @@ jobs:
       contents: write # to be able to publish a GitHub release
       issues: write # to be able to comment on released issues
       pull-requests: write # to be able to comment on released pull requests
+      attestations: write # to be able to write attestation
     steps:
       - uses: actions/checkout@v6
         with:
