@@ -145,7 +145,7 @@ export function ProcessConcurrently<Item, Common, Applied extends any[], Result>
     concurrency?: number;
     log?: LogOption;
     applyArgs?: ApplyArgsFn<Item, Common, Applied, Result>;
-  } = {}
+  } = {} as any
 ) {
   const {
     commonArgs,
