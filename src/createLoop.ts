@@ -6,7 +6,8 @@ export async function createLoop<Item, Common, Applied extends any[], Result>(
   concurrent: ConcurrentContext<Item, Common, Applied, Result>,
   pause: () => Promise<void>
 ): Promise<Result[]> {
-  for (let i = 0; i < concurrency; i++) {
+  const safeConcurrency = Math.min(concurrency, Number.MAX_SAFE_INTEGER);
+  for (let i = 0; i < safeConcurrency; i++) {
     new (Task as unknown as new (ctx: ConcurrentContext<Item, Common, Applied, Result>) => void)(concurrent);
   }
   concurrent.log(`Awaiting ${concurrent.jobs.length} jobs to finish`);
