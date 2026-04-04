@@ -29,16 +29,16 @@ export function Task<Item, Common, Applied extends any[], Result>(this: TaskHand
       return;
     }
     let isSetup = false;
-    const firstTimeSetup = () => {
+    const firstTimeSetup = async () => {
       if(isSetup) return;
+      isSetup = true;
       ++ctx.active;
       if ('init' in ctx.fn && ctx.fn.init) {
-        ctx.fn.init({ signal: controller.signal, worker: c });
+        await ctx.fn.init({ signal: controller.signal, worker: c });
       }
       if ('init' in fn && fn.init) {
-        fn.init({ signal: controller.signal, worker: c });
+        await fn.init({ signal: controller.signal, worker: c });
       }
-      isSetup = true;
     }
     while (!ctx.done && !controller.signal.aborted) {
       let nextValue = ctx.iterator.next(); // iterator protocol
@@ -51,7 +51,7 @@ export function Task<Item, Common, Applied extends any[], Result>(this: TaskHand
         break;
       firstTimeSetup();
       const localIdx = ctx.idxx++;
-      ctx.log(`[SLOT ${c}]: ${item}`);
+      ctx.log(`[SLOT ${c}]: ${ctx.idxx}`);
       const meta: Meta<Result> = {
         get idx() { return ctx.idxx; },
         get done() { return ctx.doneitems; },
