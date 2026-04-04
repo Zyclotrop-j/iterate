@@ -211,6 +211,11 @@ DESTROY 1
 */
 ```
 
+#### Constructor vs init
+
+When passing a class as the iterator function, the library may instantiate up to `<concurrency>` many instances, even when the number of tasks is smaller. This is due to the number of tasks not being limited (or even countable, e.g., in the case of an infinite iterator). Therefore, you should do heavy setup logic in `init` rather than the constructor. `init` is only called once the first task is allocated to the instance. This way you won't waste any resources.
+
+
 ### Pipelining model
 
 Opposed to many other implementations, this library will "pipeline" items. That is, as soon as one item has been processed, the next one is started.
@@ -574,6 +579,27 @@ try {
 } catch (e) {
   console.error(job.errors); // sparse array — only errored positions are set
 }
+```
+
+Likewise, if you throw in any life-cycle hooks, the iteration will be cancelled and the iterator closed.
+
+As general guidance, avoid throwing errors and rather return results of form `[OK, data]` and `[ERROR, e]` from `fn`.
+You can additionally push failed items back into the task-iterable for re-try.
+
+```
+const items = [{i: 1, r: 0}, {i: 2, r: 0}, {i: 3, r: 0}, {i: 4, r: 0}];
+const OK = Symbol('OK');
+const ERROR = Symbol('ERROR');
+await ProcessConcurrently(async (item) => {
+  try {
+    const result = await taskThatMightFail(item);
+    return [OK, result]   
+  } catch(e) {
+    if(item.r < 10)
+      items.push({...item, r: item.r + 1});
+    return [ERROR, e];
+  }
+}, items);
 ```
 
 ## Typescript support
