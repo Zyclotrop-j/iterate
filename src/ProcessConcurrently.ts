@@ -41,7 +41,7 @@ export interface IteratorFunctionClass2<Applied extends any[], Result> extends F
 // applyArgs transforms (item, common, ctx) into the spread args for fn.
 // Returns a tuple matching fn's parameter list.
 export type ApplyArgsFn<Item, Common, Applied extends any[], Result> =
-  (item: Item, common: Common | undefined, ctx: Meta<Result>) => Applied;
+  (item: Item, common: Common, ctx: Meta<Result>) => Applied;
 
 // Internal task handle — each Task pushes itself onto concurrent.jobs with this shape
 export interface TaskHandle {
@@ -116,7 +116,7 @@ export function ProcessConcurrently<Item, Applied extends any[], Result>(
   options: {
     concurrency?: number;
     log?: LogOption;
-    applyArgs: ApplyArgsFn<Item, never, Applied, Result>;
+    applyArgs: ApplyArgsFn<Item, undefined, Applied, Result>;
   }
 ): ProcessConcurrentlyInstance<Result>;
 // Overload 2b: With applyArgs — fn receives Input (first element of the tuple returned by applyArgs) - with common args
