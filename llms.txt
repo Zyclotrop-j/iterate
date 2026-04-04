@@ -1,0 +1,299 @@
+iterate-async / iterate — LLM / Agent Context File
+
+What this is
+
+iterate-async is a pipelined, concurrency-controlled async iterator
+processor.
+
+It is NOT: - a simple map helper - a queue - a wrapper around
+Promise.all
+
+It IS: - a pull-based, work-stealing pipeline over any iterable -
+designed for uneven, streaming, or unbounded workloads - built to keep
+workers busy at all times
+
+Core mental model: → async processing pipeline with dynamic concurrency
+
+------------------------------------------------------------------------
+
+Core API
+
+ProcessConcurrently(fn, iterable, options?) => Promise<Result[]> &
+Instance
+
+-   Returns a Promise you can await
+-   Also exposes live runtime state
+
+------------------------------------------------------------------------
+
+Basic Usage
+
+import ProcessConcurrently from ‘iterate-async’;
+
+const results = await ProcessConcurrently( async (item) => item * 2, [1,
+2, 3, 4] );
+
+------------------------------------------------------------------------
+
+Supported Inputs
+
+Any iterable: - Array - Set - Map - String - Generator - Async
+generator - Custom iterators
+
+Key differentiator: → Works with infinite/lazy data sources
+
+------------------------------------------------------------------------
+
+Options
+
+{ 
+  concurrency?: number // default: 4 
+  commonArgs?: any // passed to fn as 2nd arg 
+  log?: ‘log’|‘info’|‘warn’|‘error’|fn 
+  applyArgs?: (item, common, meta) => any[]
+}
+
+------------------------------------------------------------------------
+
+Iterator Function Signature
+
+async function fn(item, commonArgs, meta)
+
+------------------------------------------------------------------------
+
+Meta (live state)
+
+{
+  idx // index of current item 
+  idxx // items dispatched so far 
+  done // completed items 
+  active // currently running 
+  worker // worker slot id
+  results // partial results snapshot
+  signal // AbortSignal 
+  waiting? // remaining items (if known) 
+  total? // total items (if known)
+}
+
+------------------------------------------------------------------------
+
+Runtime Instance
+
+const job = ProcessConcurrently(fn, items);
+
+Live properties: job.concurrency job.result job.done job.active job.idx
+job.running job.errors job.waiting? job.total?
+
+------------------------------------------------------------------------
+
+Dynamic Concurrency
+
+job.concurrency = 10 job.concurrency = 2 job.concurrency = 0
+
+Scaling DOWN aborts excess workers. Scaling UP increases throughput. 0
+pauses execution.
+
+------------------------------------------------------------------------
+
+Scheduling Model
+
+Work-stealing pipeline (NOT chunking)
+
+Workers continuously pull next item.
+
+------------------------------------------------------------------------
+
+Why Pipeline > Chunking
+
+Chunking: - waits for slowest item in batch - creates idle workers
+
+Pipeline: - redistributes work dynamically - smooths uneven workloads
+
+pipeline_time ≈ total_work / concurrency
+
+------------------------------------------------------------------------
+
+Lifecycle Hooks
+
+class Worker { constructor({ signal, worker }) {} init() {} destroy() {}
+async run(item, common, meta) {} }
+
+------------------------------------------------------------------------
+
+applyArgs
+
+applyArgs: (item, common, meta) => [args…]
+
+Use this when mapping with a pre-made function.
+
+Bad:
+```
+// fn expects (url, method, body) instead of (item, common, meta)
+const fn = async (url, method, body) => { ... };
+
+await ProcessConcurrently(item => fn(item.url, item.method, item.body), requests});
+```
+
+Good:
+```
+// fn expects (url, method, body) instead of (item, common, meta)
+const fn = async (url, method, body) => { ... };
+
+await ProcessConcurrently(fn, requests, {
+  applyArgs: (item, common, meta) => [item.url, item.method, item.body],
+});
+```
+
+------------------------------------------------------------------------
+
+Error Handling
+
+-   Errors propagate
+-   Stored in job.errors[index]
+
+------------------------------------------------------------------------
+
+Key Capabilities
+
+-   dynamic concurrency
+-   any iterable
+-   streaming / infinite support
+-   worker lifecycle hooks
+-   live progress tracking
+-   pause/resume
+-   no dependencies
+
+------------------------------------------------------------------------
+
+Positioning
+
+vs p-map: - batching vs streaming
+
+vs p-limit: - primitive vs system
+
+vs p-queue: - scheduler vs processor
+
+------------------------------------------------------------------------
+
+Examples
+
+Fetch with concurrency limit
+
+```
+const results = await ProcessConcurrently(
+  (id, { baseUrl }) => fetch(`${baseUrl}${id}`).then(r => r.json()),
+  [1, 2, 3, 4, 5],
+  { commonArgs: { baseUrl: 'https://api.example.com/items/' }, concurrency: 2 }
+);
+```
+
+Read files in Node.js
+
+```
+import { readFile } from 'node:fs/promises';
+
+const buffers = await ProcessConcurrently(
+  (filename, { dir }) => readFile(`${dir}/${filename}`),
+  ['a.txt', 'b.txt', 'c.txt'],
+  { commonArgs: { dir: './data' } }
+);
+```
+
+Walk a directory tree with a generator
+
+```js
+import { readdirSync, statSync } from 'node:fs';
+
+function* walk(dir) {
+  for (const entry of readdirSync(dir)) {
+    const path = `${dir}/${entry}`;
+    if (statSync(path).isDirectory()) yield* walk(path);
+    else yield path;
+  }
+}
+
+const results = await ProcessConcurrently(uploadFile, walk('./src'), { concurrency: 8 });
+```
+
+Walk a directory tree with an async generator
+
+```js
+import { readdir, stat } from 'node:fs/promises';
+
+async function* walk(dir) {
+  for (const entry of await readdir(dir)) {
+    const path = `${dir}/${entry}`;
+    if ((await stat(path)).isDirectory()) yield* walk(path);
+    else yield path;
+  }
+}
+
+const results = await ProcessConcurrently(uploadFile, walk('./src'), { concurrency: 8 });
+```
+
+Progress indicator
+
+```js
+const fn = (item, { el }, meta) => {
+  el.textContent = `${meta.done} / ${meta.total}`;
+  return processItem(item);
+};
+
+await ProcessConcurrently(fn, items, {
+  commonArgs: { el: document.querySelector('#progress') },
+  concurrency: 4,
+});
+```
+
+Silence logging
+
+```js
+await ProcessConcurrently(fn, items, { log: () => {} });
+```
+
+Use a custom logger
+
+```js
+await ProcessConcurrently(fn, items, { log: 'warn' });       // console.warn
+await ProcessConcurrently(fn, items, { log: myLogger.info.bind(myLogger) }); // custom function
+```
+
+Error handling
+
+```js
+try {
+  await ProcessConcurrently(fn, items);
+} catch (e) {
+  console.error(job.errors); // sparse array — only errored positions are set
+}
+```
+
+Error handling - dynamic re-try
+
+```
+const items = [{i: 1, r: 0}, {i: 2, r: 0}, {i: 3, r: 0}, {i: 4, r: 0}];
+const OK = Symbol('OK');
+const ERROR = Symbol('ERROR');
+await ProcessConcurrently(async (item) => {
+  try {
+    const result = await taskThatMightFail(item);
+    return [OK, result]   
+  } catch(e) {
+    if(item.r < 10)
+      items.push({...item, r: item.r + 1});
+    return [ERROR, e];
+  }
+}, items);
+```
+
+------------------------------------------------------------------------
+
+When to Use
+
+Use when: Mapping over *any* async workload
+
+------------------------------------------------------------------------
+
+One-liner
+
+Process any iterable with a dynamically scalable async pipeline.
