@@ -1,5 +1,6 @@
 import { isIterable } from "./isIterable.js";
-import { Task } from "./Task.mjs";
+import { tryGetIn } from "./tryGetIn.js";
+import { Task } from "./Task.js";
 import { createLoop } from "./createLoop.js";
 
 const staticProps = {
@@ -24,19 +25,41 @@ export type Meta<Result, IdxArg = unknown> = {
 // The function that processes each item.
 export type IteratorFunction<Input, Common, Result> =
   (input: Input, common: Common, ctx: Meta<Result>) => Promise<Result> | Result;
+
+// Variant used when applyArgs is provided: fn receives a custom spread argument tuple.
 export type IteratorFunction2<Applied extends any[], Result> =
   (...args: Applied) => Promise<Result> | Result;
-  
+
+export interface IteratorFunctionClass<Input, Common, Result> extends FnLifecycle {
+  new(arg: {
+    signal: AbortSignal,
+    worker: number
+  })
+  run: IteratorFunction<Input, Common, Result>
+}
+export interface IteratorFunctionClass2<Applied extends any[], Result> extends FnLifecycle {
+  new(arg: {
+    signal: AbortSignal,
+    worker: number
+  })
+  run: IteratorFunction2<Applied, Result>
+}
 
 // applyArgs transforms (item, common, ctx) into the spread args for fn.
 // Returns a tuple matching fn's parameter list.
 export type ApplyArgsFn<Item, Common, Applied extends any[], Result> =
-  (item: Item, common: Common, ctx: Meta<Result>) => Applied;
+  (item: Item, common: Common | undefined, ctx: Meta<Result>) => Applied;
 
 // Internal task handle — each Task pushes itself onto concurrent.jobs with this shape
 export interface TaskHandle {
   promise: Promise<void>;
   abortController: AbortController;
+}
+
+// Optional lifecycle hooks that can be attached to the fn function or class.
+export interface FnLifecycle {
+  init?: (args: { signal: AbortSignal; worker: number }) => void;
+  destroy?: (args: { worker: number; error?: unknown }) => void;
 }
 
 // The shared context object passed between ProcessConcurrently, Task, and createLoop
@@ -52,10 +75,10 @@ export interface ConcurrentContext<Item, Common, Applied extends any[], Result> 
   done: boolean;
   iterator: Iterator<any> | AsyncIterator<any>;
   log: (...args: any[]) => void;
-  applyArgs: (item: Item, common: Common, meta: Meta<Result>) => Applied;
-  commonArgs: Common;
+  applyArgs: (item: Item, common: Common | undefined, meta: Meta<Result>) => Applied;
+  commonArgs: Common | undefined;
   idxArg: Iterable<Item> | AsyncIterable<Item>;
-  fn: IteratorFunction<Item, Common, Result> | IteratorFunction2<Applied, Result>;
+  fn: (IteratorFunction<Item, Common, Result> | IteratorFunction2<Applied, Result>) | IteratorFunctionClass<Item, Common, Result> | IteratorFunctionClass2<Applied, Result> | & FnLifecycle;
 }
 
 // Properties added to the instance via Object.defineProperties
@@ -76,7 +99,7 @@ type LogOption = 'log' | 'info' | 'warn' | 'error' | ((...args: any[]) => void);
 
 // Overload 1: With applyArgs — fn receives Input (first element of the tuple returned by applyArgs)
 export function ProcessConcurrently<Item, Common, Applied extends any[], Result>(
-  fn: IteratorFunction2<Applied, Result>,
+  fn: IteratorFunction2<Applied, Result> | IteratorFunctionClass2<Applied, Result>,
   idxArg: Iterable<Item> | AsyncIterable<Item>,
   options: {
     commonArgs?: Common;
@@ -88,7 +111,7 @@ export function ProcessConcurrently<Item, Common, Applied extends any[], Result>
 
 // Overload 2: Without applyArgs — fn receives Item directly
 export function ProcessConcurrently<Item, Common, Result>(
-  fn: IteratorFunction<Item, Common, Result>,
+  fn: IteratorFunction<Item, Common, Result> | IteratorFunctionClass<Item, Common, Result>,
   idxArg: Iterable<Item> | AsyncIterable<Item>,
   options?: {
     commonArgs?: Common;
@@ -100,7 +123,8 @@ export function ProcessConcurrently<Item, Common, Result>(
 
 // Implementation
 export function ProcessConcurrently<Item, Common, Applied extends any[], Result>(
-  fn: IteratorFunction<Item, Common, Result> | IteratorFunction2<Applied, Result>,
+  this: ProcessConcurrentlyInstance<Result> | undefined,
+  fn: IteratorFunction<Item, Common, Result> | IteratorFunction2<Applied, Result> | IteratorFunctionClass<Item, Common, Result> | IteratorFunctionClass2<Applied, Result>,
   idxArg: Iterable<Item> | AsyncIterable<Item>,
   options: {
     commonArgs?: Common;
@@ -110,9 +134,9 @@ export function ProcessConcurrently<Item, Common, Applied extends any[], Result>
   } = {}
 ) {
   const {
-    commonArgs = {} as Common,
+    commonArgs,
     concurrency = 4,
-    applyArgs = (item: Item, common: Common, ctx: Meta<Result>) =>
+    applyArgs = (item: Item, common: Common | undefined, ctx: Meta<Result>) =>
       [item, common, ctx] as Applied,
   } = options;
 
@@ -162,7 +186,7 @@ export function ProcessConcurrently<Item, Common, Applied extends any[], Result>
     fn,
   } satisfies ConcurrentContext<Item, Common, Applied, Result>;
   const unpausenoop = () => null;
-  let unpause: () => null | void = unpausenoop;
+  let unpause: () => void = unpausenoop;
   const pause = () => {
     return new Promise<void>(res => {
       if (unpause) {
@@ -191,7 +215,7 @@ export function ProcessConcurrently<Item, Common, Applied extends any[], Result>
         logger(`Scaling up to ${newValue}`);
         const newTasks = newValue - concurrent.jobs.length;
         for (let i = 0; i < newTasks; i++) {
-          new Task(concurrent); // pushes itself to jobs upon creation
+          new Task<Item, Common, Applied, Result>(concurrent); // pushes itself to jobs upon creation
         }
         logger(`Scaled up to ${newValue}`);
       }
@@ -224,7 +248,7 @@ export function ProcessConcurrently<Item, Common, Applied extends any[], Result>
       ...staticProps
     },
     result: {
-      get() { return ([] as Result[]).concat(concurrent.results); },
+      get() { return [...concurrent.results]; },
       ...staticProps
     },
     done: {
@@ -248,14 +272,20 @@ export function ProcessConcurrently<Item, Common, Applied extends any[], Result>
       ...staticProps,
     },
   });
-  if ((concurrent.idxArg as any).length) {
+  // Expose waiting/total only when the iterable has a known length.
+  // Mirrors the same check in Task.mjs: covers arrays/strings (.length),
+  // Sets (.size), and any object that has a 'length' property.
+  const isSet = idxArg instanceof Set;
+  const idxArgAny = idxArg as any;
+  if (isSet || typeof idxArg === 'string' || tryGetIn('length', idxArgAny) || idxArgAny.length) {
+    const getLen = () => isSet ? idxArgAny.size : idxArgAny.length;
     Object.defineProperties(self, {
       waiting: {
-        get() { return (concurrent.idxArg as any).length - concurrent.idxx; },
+        get() { return getLen() - concurrent.idxx; },
         ...staticProps
       },
       total: {
-        get() { return (concurrent.idxArg as any).length; },
+        get() { return getLen(); },
         ...staticProps
       },
     });

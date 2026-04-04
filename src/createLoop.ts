@@ -1,4 +1,4 @@
-import { Task } from "./Task.mjs";
+import { Task } from "./Task.js";
 import type { ConcurrentContext } from "./ProcessConcurrently.js";
 
 export async function createLoop<Item, Common, Applied extends any[], Result>(
@@ -7,7 +7,7 @@ export async function createLoop<Item, Common, Applied extends any[], Result>(
   pause: () => Promise<void>
 ): Promise<Result[]> {
   for (let i = 0; i < concurrency; i++) {
-    new Task(concurrent);
+    new Task<Item, Common, Applied, Result>(concurrent);
   }
   concurrent.log(`Awaiting ${concurrent.jobs.length} jobs to finish`);
   while (!concurrent.done) {

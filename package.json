@@ -18,7 +18,9 @@
     }
   },
   "scripts": {
-    "test": "node test.mjs",
+    "test:compile": "esbuild src/index.ts --bundle --format=esm --outfile=src/index.mjs && esbuild src/isConstructable.ts --format=esm --outfile=src/isConstructable.mjs && esbuild src/isIterable.ts --format=esm --outfile=src/isIterable.mjs && esbuild src/getLength.ts --format=esm --outfile=src/getLength.mjs && esbuild src/tryGetIn.ts --format=esm --outfile=src/tryGetIn.mjs",
+    "test:clean": "rm -f src/index.mjs src/isConstructable.mjs src/isIterable.mjs src/getLength.mjs src/tryGetIn.mjs",
+    "test": "npm run test:compile && node test.mjs; CODE=$?; npm run test:clean; exit $CODE",
     "coverage": "c8 -r lcov -r text --report-dir ./.c8-report yarn test",
     "build:esm": "esbuild src/index.ts --bundle --format=esm --sourcemap --outfile=build/index.mjs",
     "build:cjs": "esbuild src/index.ts --bundle --format=cjs --sourcemap --outfile=build/index.cjs",
