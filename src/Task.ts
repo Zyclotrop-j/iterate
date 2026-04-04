@@ -8,7 +8,10 @@ function ensureCallableFunction<Item, Common, Applied extends any[], Result>(con
     try {
       const inst = new (ctx.fn as any)({ signal: controller.signal, worker: c });
       if (inst.run) {
-        return inst.run.bind(inst);
+        const run = inst.run.bind(inst);
+        if(inst.init) run.init = inst.init.bind(inst);
+        if(inst.destroy) run.destroy = inst.destroy.bind(inst);
+        return run;
       }
     } catch (e) { }
   }
