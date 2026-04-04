@@ -32,6 +32,9 @@ export function Task<Item, Common, Applied extends any[], Result>(this: TaskHand
     if ('init' in ctx.fn && ctx.fn.init) {
       ctx.fn.init({ signal: controller.signal, worker: c });
     }
+    if ('init' in fn && fn.init) {
+      fn.init({ signal: controller.signal, worker: c });
+    }
     while (!ctx.done && !controller.signal.aborted) {
       let nextValue = ctx.iterator.next(); // iterator protocol
       if (ctx.isAsyncIter) {
@@ -71,6 +74,9 @@ export function Task<Item, Common, Applied extends any[], Result>(this: TaskHand
         if ('destroy' in ctx.fn && ctx.fn.destroy) { // we also invoke cleanup code, if defined
           ctx.fn.destroy({ worker: c, error: e });
         }
+         if ('destroy' in fn && fn.destroy) { // we also invoke cleanup code, if defined
+          fn.destroy({ worker: c, error: e });
+        }
         if (ctx.iterator.throw) { // if the iterator can be set to done, we set it to done with error
           ctx.iterator.throw(e);
         }
@@ -85,6 +91,9 @@ export function Task<Item, Common, Applied extends any[], Result>(this: TaskHand
     }
     if ('destroy' in ctx.fn && ctx.fn.destroy) {
       ctx.fn.destroy({ worker: c });
+    }
+    if ('destroy' in fn && fn.destroy) {
+      fn.destroy({ worker: c });
     }
     --ctx.active;
   })();
