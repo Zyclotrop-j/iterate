@@ -10,6 +10,14 @@ Like `await Promise.all(items.map(fn))` but with a concurrency limit, live progr
 npm install iterate-async
 ```
 
+```sh
+yarn add iterate-async
+```
+
+```sh
+pnpm add iterate-async
+```
+
 ## Basic usage
 
 ```js
