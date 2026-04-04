@@ -15,12 +15,12 @@ function ensureCallableFunction<Item, Common, Applied extends any[], Result>(con
   return ctx.fn as any;
 }
 
-export function Task<Item, Common, Applied extends any[], Result>(ctx: ConcurrentContext<Item, Common, Applied, Result>) {
+export function Task<Item, Common, Applied extends any[], Result>(this: TaskHandle, ctx: ConcurrentContext<Item, Common, Applied, Result>) {
   const c = ctx.jobs.length;
   const controller = new AbortController();
   this.abortController = controller;
   const fn = ensureCallableFunction(controller, c, ctx);
-  this.promise = (async () => {
+  this.promise = (async (): Promise<void> => {
     await Promise.resolve(); // next tick
     if (ctx.done) { // already done, no need to create another slot
       return;
@@ -59,7 +59,7 @@ export function Task<Item, Common, Applied extends any[], Result>(ctx: Concurren
       }
       try {
         const spreadArgs = ctx.applyArgs(item, ctx.commonArgs, meta);
-        const result = await fn.apply(fn, spreadArgs);
+        const result = await fn.apply(fn, spreadArgs) as Result;
         ctx.results[localIdx] = result;
       } catch (e) {
         ctx.errors[localIdx] = e;

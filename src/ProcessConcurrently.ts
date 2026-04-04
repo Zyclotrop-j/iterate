@@ -23,26 +23,19 @@ export type Meta<Result, IdxArg = unknown> = {
 };
 
 // The function that processes each item.
+// `common` is typed as `Common | undefined` because `commonArgs` is optional in options.
 export type IteratorFunction<Input, Common, Result> =
-  (input: Input, common: Common, ctx: Meta<Result>) => Promise<Result> | Result;
+  (input: Input, common: Common | undefined, ctx: Meta<Result>) => Promise<Result> | Result;
 
 // Variant used when applyArgs is provided: fn receives a custom spread argument tuple.
 export type IteratorFunction2<Applied extends any[], Result> =
   (...args: Applied) => Promise<Result> | Result;
 
 export interface IteratorFunctionClass<Input, Common, Result> extends FnLifecycle {
-  new(arg: {
-    signal: AbortSignal,
-    worker: number
-  })
-  run: IteratorFunction<Input, Common, Result>
+  new(arg: { signal: AbortSignal; worker: number }): { run: IteratorFunction<Input, Common, Result> };
 }
 export interface IteratorFunctionClass2<Applied extends any[], Result> extends FnLifecycle {
-  new(arg: {
-    signal: AbortSignal,
-    worker: number
-  })
-  run: IteratorFunction2<Applied, Result>
+  new(arg: { signal: AbortSignal; worker: number }): { run: IteratorFunction2<Applied, Result> };
 }
 
 // applyArgs transforms (item, common, ctx) into the spread args for fn.
@@ -78,7 +71,7 @@ export interface ConcurrentContext<Item, Common, Applied extends any[], Result> 
   applyArgs: (item: Item, common: Common | undefined, meta: Meta<Result>) => Applied;
   commonArgs: Common | undefined;
   idxArg: Iterable<Item> | AsyncIterable<Item>;
-  fn: (IteratorFunction<Item, Common, Result> | IteratorFunction2<Applied, Result>) | IteratorFunctionClass<Item, Common, Result> | IteratorFunctionClass2<Applied, Result> | & FnLifecycle;
+  fn: (IteratorFunction<Item, Common, Result> | IteratorFunction2<Applied, Result> | IteratorFunctionClass<Item, Common, Result> | IteratorFunctionClass2<Applied, Result>) & FnLifecycle;
 }
 
 // Properties added to the instance via Object.defineProperties
@@ -215,7 +208,7 @@ export function ProcessConcurrently<Item, Common, Applied extends any[], Result>
         logger(`Scaling up to ${newValue}`);
         const newTasks = newValue - concurrent.jobs.length;
         for (let i = 0; i < newTasks; i++) {
-          new Task<Item, Common, Applied, Result>(concurrent); // pushes itself to jobs upon creation
+          new (Task as unknown as new (ctx: typeof concurrent) => void)(concurrent); // pushes itself to jobs upon creation
         }
         logger(`Scaled up to ${newValue}`);
       }

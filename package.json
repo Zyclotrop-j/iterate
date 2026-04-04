@@ -6,26 +6,36 @@
     "c8": "^11.0.0",
     "esbuild": "^0.28.0",
     "nyc": "^18.0.0",
-    "tsc": "^2.0.4"
+    "tsc": "^2.0.4",
+    "typescript": "^6.0.2"
   },
   "name": "iterate-async",
   "version": "1.1.2",
+  "engines": {
+    "node": ">=18"
+  },
   "main": "build/index",
+  "types": "./build/types/index.d.ts",
   "exports": {
     ".": {
+      "types": "./build/types/index.d.ts",
       "require": "./build/index.cjs",
       "import": "./build/index.mjs"
     }
   },
+  "files": [
+    "build/"
+  ],
   "scripts": {
     "test:compile": "esbuild src/index.ts --bundle --format=esm --outfile=src/index.mjs && esbuild src/isConstructable.ts --format=esm --outfile=src/isConstructable.mjs && esbuild src/isIterable.ts --format=esm --outfile=src/isIterable.mjs && esbuild src/getLength.ts --format=esm --outfile=src/getLength.mjs && esbuild src/tryGetIn.ts --format=esm --outfile=src/tryGetIn.mjs",
     "test:clean": "rm -f src/index.mjs src/isConstructable.mjs src/isIterable.mjs src/getLength.mjs src/tryGetIn.mjs",
-    "test": "npm run test:compile && node test.mjs; CODE=$?; npm run test:clean; exit $CODE",
+    "test": "yarn test:compile && node test.mjs; CODE=$?; yarn test:clean; exit $CODE",
     "coverage": "c8 -r lcov -r text --report-dir ./.c8-report yarn test",
     "build:esm": "esbuild src/index.ts --bundle --format=esm --sourcemap --outfile=build/index.mjs",
     "build:cjs": "esbuild src/index.ts --bundle --format=cjs --sourcemap --outfile=build/index.cjs",
     "build:global": "esbuild src/index.ts --bundle --format=iife --global-name=ProcessConcurrently --sourcemap --outfile=build/index.js",
-    "build": "yarn build:esm && yarn build:cjs && yarn build:global",
+    "build:types": "tsc --project tsconfig.json",
+    "build": "yarn build:esm && yarn build:cjs && yarn build:global && yarn build:types",
     "semantic-release": "npx semantic-release"
   },
   "repository": {
