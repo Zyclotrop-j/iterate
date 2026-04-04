@@ -198,7 +198,7 @@ export function ProcessConcurrently<Item, Common, Applied extends any[], Result>
     commonArgs,
     idxArg,
     fn,
-  } satisfies ConcurrentContext<Item, Common, Applied, Result>;
+  } satisfies ConcurrentContext<Item, Common, Applied, Result> as any;
   const unpausenoop = () => null;
   let unpause: () => void = unpausenoop;
   const pause = () => {
