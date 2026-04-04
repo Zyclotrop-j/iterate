@@ -95,7 +95,6 @@ export function ProcessConcurrently<Item, Result>(
   iteratorFunction: IteratorFunction<Item, undefined, Result> | IteratorFunctionClass<Item, undefined, Result>,
   idxArg: Iterable<Item> | AsyncIterable<Item>,
   options?: {
-    commonArgs: never;
     concurrency?: number;
     log?: LogOption;
     applyArgs: never;
@@ -117,7 +116,6 @@ export function ProcessConcurrently<Item, Applied extends any[], Result>(
   iteratorFunction: IteratorFunction2<Applied, Result> | IteratorFunctionClass2<Applied, Result>,
   idxArg: Iterable<Item> | AsyncIterable<Item>,
   options?: {
-    commonArgs: never;
     concurrency?: number;
     log?: LogOption;
     applyArgs?: ApplyArgsFn<Item, never, Applied, Result>;
@@ -128,7 +126,7 @@ export function ProcessConcurrently<Item, Common, Applied extends any[], Result>
   iteratorFunction: IteratorFunction2<Applied, Result> | IteratorFunctionClass2<Applied, Result>,
   idxArg: Iterable<Item> | AsyncIterable<Item>,
   options: {
-    commonArgs?: Common;
+    commonArgs: Common;
     concurrency?: number;
     log?: LogOption;
     applyArgs?: ApplyArgsFn<Item, Common, Applied, Result>;
