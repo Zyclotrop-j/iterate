@@ -81,7 +81,8 @@ The third argument to `fn` provides live progress information. All properties ar
 
 ```ts
 type Meta = {
-  idx: number;       // 1-based index of the current item (increments as items are dispatched)
+  idx: number;       // index of this item
+  idxx: number;      // latest dispatched index
   done: number;      // count of successfully completed items
   active: number;    // count of items currently in-flight
   worker: number;    // 0-based index of the worker slot handling this item
