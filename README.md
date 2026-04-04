@@ -276,3 +276,61 @@ try {
   console.error(job.errors); // sparse array — only errored positions are set
 }
 ```
+
+## Typescript support
+
+This library supports TypeScript natively.
+Make sure you type your iterator function well!
+
+```
+import ProcessConcurrently from 'iterate-async';
+
+ProcessConcurrently(async (arg, com, meta): Promise<string> => {
+    console.log(com.hello);
+    console.log({...meta});
+    return arg.toFixed();
+}, [1, 2, 3, 4], {
+    commonArgs: {
+        hello: 'world'
+    }
+}).then((results) => {
+  console.log(results);
+});
+
+ProcessConcurrently(async (arg, _, meta): Promise<string> => {
+    console.log({...meta})
+    return arg.toFixed();
+}, [1, 2, 3, 4], {
+    concurrency: 2
+}).then((results) => {
+  console.log(results);
+});
+
+ProcessConcurrently(async (arg, common: {
+    hello: string;
+}, meta): Promise<string> => {
+    console.log(common.hello);
+    console.log({...meta})
+    return arg.toFixed();
+}, [1, 2, 3, 4], {
+    concurrency: 2,
+    commonArgs: {
+        hello: 'world'
+    }
+}).then((results) => {
+  console.log(results);
+});
+
+ProcessConcurrently(async (a: string, b: string): Promise<string> => {
+    console.log(a, b);
+    return a + ', ' + b;
+}, [1, 2, 3, 4], {
+    commonArgs: {
+        foo: 'bar'
+    },
+    concurrency: 1,
+    applyArgs: (arg: number, common: { foo: string }) => [""+arg, common.foo] as [string, string]
+}).then((results) => {
+  console.log(results);
+});
+```
