@@ -9,7 +9,7 @@
     "typescript": "^6.0.2"
   },
   "name": "iterate-async",
-  "version": "1.7.0",
+  "version": "1.7.1",
   "engines": {
     "node": ">=18"
   },
