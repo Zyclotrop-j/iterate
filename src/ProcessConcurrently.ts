@@ -92,7 +92,7 @@ type LogOption = 'log' | 'info' | 'warn' | 'error' | ((...args: any[]) => void);
 
 // Overload 1a: Without applyArgs — fn receives Item directly - no common args
 export function ProcessConcurrently<Item, Result>(
-  fn: IteratorFunction<Item, undefined, Result> | IteratorFunctionClass<Item, undefined, Result>,
+  iteratorFunction: IteratorFunction<Item, undefined, Result> | IteratorFunctionClass<Item, undefined, Result>,
   idxArg: Iterable<Item> | AsyncIterable<Item>,
   options?: {
     commonArgs: never;
@@ -103,7 +103,7 @@ export function ProcessConcurrently<Item, Result>(
 ): ProcessConcurrentlyInstance<Result>;
 // Overload 1b: Without applyArgs — fn receives Item directly - with common args
 export function ProcessConcurrently<Item, Common, Result>(
-  fn: IteratorFunction<Item, Common, Result> | IteratorFunctionClass<Item, Common, Result>,
+  iteratorFunction: IteratorFunction<Item, Common, Result> | IteratorFunctionClass<Item, Common, Result>,
   idxArg: Iterable<Item> | AsyncIterable<Item>,
   options: {
     commonArgs: Common;
@@ -114,7 +114,7 @@ export function ProcessConcurrently<Item, Common, Result>(
 ): ProcessConcurrentlyInstance<Result>;
 // Overload 2a: With applyArgs — fn receives Input (first element of the tuple returned by applyArgs) - no common args
 export function ProcessConcurrently<Item, Applied extends any[], Result>(
-  fn: IteratorFunction2<Applied, Result> | IteratorFunctionClass2<Applied, Result>,
+  iteratorFunction: IteratorFunction2<Applied, Result> | IteratorFunctionClass2<Applied, Result>,
   idxArg: Iterable<Item> | AsyncIterable<Item>,
   options?: {
     commonArgs: never;
@@ -125,7 +125,7 @@ export function ProcessConcurrently<Item, Applied extends any[], Result>(
 ): ProcessConcurrentlyInstance<Result>;
 // Overload 2b: With applyArgs — fn receives Input (first element of the tuple returned by applyArgs) - with common args
 export function ProcessConcurrently<Item, Common, Applied extends any[], Result>(
-  fn: IteratorFunction2<Applied, Result> | IteratorFunctionClass2<Applied, Result>,
+  iteratorFunction: IteratorFunction2<Applied, Result> | IteratorFunctionClass2<Applied, Result>,
   idxArg: Iterable<Item> | AsyncIterable<Item>,
   options: {
     commonArgs?: Common;
@@ -138,7 +138,7 @@ export function ProcessConcurrently<Item, Common, Applied extends any[], Result>
 // Implementation
 export function ProcessConcurrently<Item, Common, Applied extends any[], Result>(
   this: ProcessConcurrentlyInstance<Result> | undefined,
-  fn: IteratorFunction<Item, Common, Result> | IteratorFunction2<Applied, Result> | IteratorFunctionClass<Item, Common, Result> | IteratorFunctionClass2<Applied, Result>,
+  iteratorFunction: any,
   idxArg: Iterable<Item> | AsyncIterable<Item>,
   options: {
     commonArgs?: any;
@@ -147,6 +147,7 @@ export function ProcessConcurrently<Item, Common, Applied extends any[], Result>
     applyArgs?: ApplyArgsFn<Item, Common, Applied, Result>;
   } = {} as any
 ) {
+  const fn = iteratorFunction as IteratorFunction<Item, Common, Result> | IteratorFunction2<Applied, Result> | IteratorFunctionClass<Item, Common, Result> | IteratorFunctionClass2<Applied, Result>;
   const {
     commonArgs: cAr,
     concurrency = 4,
