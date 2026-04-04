@@ -97,7 +97,6 @@ export function ProcessConcurrently<Item, Result>(
   options?: {
     concurrency?: number;
     log?: LogOption;
-    applyArgs: never;
   }
 ): ProcessConcurrentlyInstance<Result>;
 // Overload 1b: Without applyArgs — fn receives Item directly - with common args
@@ -108,17 +107,16 @@ export function ProcessConcurrently<Item, Common, Result>(
     commonArgs: Common;
     concurrency?: number;
     log?: LogOption;
-    applyArgs: never;
   }
 ): ProcessConcurrentlyInstance<Result>;
 // Overload 2a: With applyArgs — fn receives Input (first element of the tuple returned by applyArgs) - no common args
 export function ProcessConcurrently<Item, Applied extends any[], Result>(
   iteratorFunction: IteratorFunction2<Applied, Result> | IteratorFunctionClass2<Applied, Result>,
   idxArg: Iterable<Item> | AsyncIterable<Item>,
-  options?: {
+  options: {
     concurrency?: number;
     log?: LogOption;
-    applyArgs?: ApplyArgsFn<Item, never, Applied, Result>;
+    applyArgs: ApplyArgsFn<Item, never, Applied, Result>;
   }
 ): ProcessConcurrentlyInstance<Result>;
 // Overload 2b: With applyArgs — fn receives Input (first element of the tuple returned by applyArgs) - with common args
@@ -129,7 +127,7 @@ export function ProcessConcurrently<Item, Common, Applied extends any[], Result>
     commonArgs: Common;
     concurrency?: number;
     log?: LogOption;
-    applyArgs?: ApplyArgsFn<Item, Common, Applied, Result>;
+    applyArgs: ApplyArgsFn<Item, Common, Applied, Result>;
   }
 ): ProcessConcurrentlyInstance<Result>;
 
