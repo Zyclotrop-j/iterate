@@ -15,8 +15,8 @@ export type Meta<Result, IdxArg = unknown> = {
   readonly done: number;
   readonly active: number;
   readonly idxArg: IdxArg;
-  readonly results: Result[];
-  signal: AbortSignal;
+  readonly results: ReadonlyArray<Result>;
+  readonly signal: AbortSignal;
   readonly worker: number;
   readonly waiting?: number;
   readonly total?: number;
