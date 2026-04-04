@@ -49,7 +49,21 @@ export function Task<Item, Common, Applied extends any[], Result>(this: TaskHand
       ctx.done ||= !!d;
       if (ctx.done)
         break;
-      firstTimeSetup();
+      try {
+        await firstTimeSetup();
+      } catch(e) {
+        --ctx.active; // we're throwing which means, this task will stop processing
+        if ('destroy' in ctx.fn && ctx.fn.destroy) { // we also invoke cleanup code, if defined
+          ctx.fn.destroy({ worker: c, error: e });
+        }
+         if ('destroy' in fn && fn.destroy) { // we also invoke cleanup code, if defined
+          fn.destroy({ worker: c, error: e });
+        }
+        if (ctx.iterator.throw) { // if the iterator can be set to done, we set it to done with error
+          ctx.iterator.throw(e);
+        }
+        throw e; // we re-throw the error and let it bubble up, right to the top
+      }
       const localIdx = ctx.idxx++;
       ctx.log(`[SLOT ${c}]: ${ctx.idxx}`);
       const meta: Meta<Result> = {
