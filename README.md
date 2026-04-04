@@ -41,7 +41,7 @@ const { ProcessConcurrently } = require('iterate-async');
 ProcessConcurrently(fn, iterable, options?) => ProcessConcurrentlyInstance<Result>
 ```
 
-`ProcessConcurrentlyInstance` extends `Promise<Result[]>` — you can `await` it directly.
+`ProcessConcurrentlyInstance` extends `Promise<Result[]>` - you can `await` it directly.
 
 ### Parameters
 
