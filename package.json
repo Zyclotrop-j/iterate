@@ -65,5 +65,18 @@
     "registry": "https://registry.npmjs.org/",
     "tag": "latest",
     "provenance": true
+  },
+  "release": {
+    "plugins": [
+      "@semantic-release/commit-analyzer",
+      "@semantic-release/release-notes-generator",
+      [
+        "@semantic-release/npm",
+        {
+          "tarballDir": "dist"
+        }
+      ],
+      "@semantic-release/git"
+    ]
   }
 }
