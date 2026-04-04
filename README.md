@@ -89,7 +89,7 @@ type Meta = {
   results: Result[]; // snapshot of results collected so far
   signal: AbortSignal; // aborted if this worker slot is scaled down or on error
   waiting?: number;  // items not yet started (only present when total is known)
-  total?: number;    // total item count (only present for sized iterables: arrays, Sets, strings)
+  total?: number;    // total item count (only present for sized iterables such as arrays, Sets and strings)
 }
 ```
 
@@ -199,6 +199,250 @@ DESTROY 1
 */
 ```
 
+### Pipelining model
+
+Opposed to many other implementations, this library will "pipeline" items. That is, as soon as one item has been processed, the next one is started.
+This ensures that there are always <concurrency> number of items being processed in parallel.
+This is distinctly different from chunking. To understand more, see the practical example below.
+
+#### Setup
+
+```
+const now = Date.now();
+async function process(i) {
+  const sleep = (i % 2) * 100 + 100;
+  await new Promise(res => setTimeout(res, sleep));
+  console.log(`Processed ${i} at ${Date.now() - now}`);
+  return i;
+}
+```
+
+#### One item after another
+
+In this example, every item is strictly processed after the previous one is already finished. This is the same as `concurrency: 1` in `ProcessConcurrently`.
+
+`1 ─200─> 2 ─100─> 3 ─200─> 4 ─100─> 5 ─200─> 6 ─100─> 7 ─200─> 8 ─100─> DONE`
+
+```
+const items = [1,2,3,4,5,6,7,8];
+for(const i of items) {
+  await process(i);
+}
+/*
+Processed 1 at 203
+Processed 2 at 311
+Processed 3 at 527
+Processed 4 at 637
+Processed 5 at 842
+Processed 6 at 951
+Processed 7 at 1156
+Processed 8 at 1265
+*/
+```
+
+#### All items at once
+
+In this example, no item waits for another - they are all running in parallel. This is the same as `concurrency: Infinity` in `ProcessConcurrently`.
+
+```
+t=0:
+1(200) |
+2(100) |
+3(200) |
+4(100) |
+5(200) |
+6(100) |
+7(200) |
+8(100) |
+
+t=100: 2,4,6,8 done
+t=200: 1,3,5,7 done → DONE
+```
+
+```
+const items = [1,2,3,4,5,6,7,8];
+await Promise.all(items.map(async i => process(i)));
+/*
+Processed 2 at 114
+Processed 4 at 114
+Processed 6 at 114
+Processed 8 at 115
+Processed 1 at 208
+Processed 3 at 208
+Processed 5 at 208
+Processed 7 at 208
+*/
+```
+
+#### One chunk at a time
+
+In this example, items are split into chunks. All items within a chunk are processed in parallel. Each chunk waits for the prvious one to finish before starting the next.
+
+Chunking is like shipping pallets - items are grouped and processed together.
+
+```
+Batch 1: [1,2]
+1(200) |
+2(100) |   → done at 200
+
+Batch 2: [3,4]
+3(200) |
+4(100) |   → done at 200
+
+Batch 3: [5,6]
+5(200) |
+6(100) |   → done at 200
+
+Batch 4: [7,8]
+7(200) |
+8(100) |   → done at 200
+
+TOTAL: 4 batches × 200ms = 800ms
+```
+
+```
+function chunkArray(arr, size) {
+  const chunkedArr = [];
+  for (let i = 0; i < arr.length; i += size) {
+    chunkedArr.push(arr.slice(i, i + size));
+  }
+  return chunkedArr;
+}
+const items = [1,2,3,4,5,6,7,8];
+const chunks = chunkArray(items, 2); 
+for(const chunk of chunks) {
+  await Promise.all(chunk.map(async i => process(i)));
+}
+/*
+Processed 2 at 107
+Processed 1 at 215
+Processed 4 at 325
+Processed 3 at 418
+Processed 6 at 527
+Processed 5 at 620
+Processed 8 at 728
+Processed 7 at 822
+*/
+```
+
+#### Pipelined
+
+In this example, 2 pipelines are created. Each pipeline will pull items one after the other from the pool until all are processed. Pipelines don't wait for one another but are always keeping busy. This ensures consistent throughput without spikes or drops.
+
+Pipelineing is like assembly lines - each item moves station to station continuously
+
+```
+t=0:
+P1: 1(200)
+P2: 2(100)
+
+t=100:
+P2 picks next → 3(200)
+
+t=200:
+P1 finishes → picks 4(100)
+P2 still running 3
+
+t=300:
+P1 finishes → picks 5(200)
+P2 finishes → picks 6(100)
+
+t=400:
+P2 finishes → picks 7(200)
+
+t=500:
+P1 finishes → picks 8(100)
+
+t=600:
+P1 finishes
+t=700:
+P2 finishes → DONE
+```
+
+```
+P1: 1 ─200─> 4 ─100─> 5 ─200─> 8 ─100─> DONE (600ms)
+P2: 2 ─100─> 3 ─200─> 6 ─100─> 7 ─200─> DONE (700ms)
+```
+
+```
+const items = [1,2,3,4,5,6,7,8];
+ await ProcessConcurrently(
+  i => process(i),
+  items,
+  { concurrency: 2 }
+);
+/*
+Processed 2 at 104
+Processed 1 at 212
+Processed 3 at 306
+Processed 4 at 322
+Processed 6 at 433
+Processed 5 at 511
+Processed 8 at 619
+Processed 7 at 634
+*/
+```
+
+#### Comparison
+
+| Mode                               | Peak Running | Avg Running | Total Time |
+|------------------------------------|-------------|------------|------------|
+| Sequential (for-loop)              | 1           | 1.00       | 1200ms     |
+| Full Parallel (Promise.all)        | 8           | 6.00       | 200ms      |
+| Chunking (batch size = 2)          | 2           | 1.50       | 800ms      |
+| Pipeline (concurrency = 2)         | 2           | 1.71       | 700ms      |
+| Chunking (batch size = 3)          | 3           | 1.71       | 700ms      |
+| Pipeline (concurrency = 3)         | 3           | 2.18       | 550ms      |
+
+#### Example 2
+
+Assume workloads are vastly uneven - this is how, in reality, many workloads (network requets, competing for physical resources, file-processing, ...) behave.
+
+We will assume 1000 items to be processed. As an example formular we take `(i % 100)^2 + 1`, that is item 1 takes 1ms, item 2 takes 2ms, item 3 takes 5ms, item 4 takes 10ms, ..., item 96 takes 9410ms, item 97 takes 9605ms, item 98 takes 9802ms, item 99 takes 1ms, item 100 takes 2ms and so on.
+
+With this modelling, the table from above looks as follows.
+
+| Mode                              | Peak Running | Avg Running | Total Time |
+|-----------------------------------|-------------|------------|------------|
+| Sequential                        | 1           | 1.00       | 3,284,500ms |
+| Full Parallel                     | 1000        | 335.00     | 9,802ms     |
+|-----------------------------------|-------------|------------|------------|
+| Chunking (size = 2)               | 2           | 1.00       | 3,284,500ms |
+| Chunking (size = 5)               | 5           | 2.50       | 1,313,800ms |
+| Chunking (size = 10)              | 10          | 5.00       | 656,900ms   |
+| Chunking (size = 20)              | 20          | 10.00      | 328,450ms   |
+| Chunking (size = 50)              | 50          | 25.00      | 131,380ms   |
+| Chunking (size = 100)             | 100         | 50.00      | 65,690ms    |
+| Chunking (size = 200)             | 200         | 100.00     | 32,845ms    |
+|-----------------------------------|-------------|------------|------------|
+| Pipeline (concurrency = 2)        | 2           | 2.00       | 1,642,250ms |
+| Pipeline (concurrency = 5)        | 5           | 5.00       | 656,900ms   |
+| Pipeline (concurrency = 10)       | 10          | 10.00      | 328,450ms   |
+| Pipeline (concurrency = 20)       | 20          | 20.00      | 164,225ms   |
+| Pipeline (concurrency = 50)       | 50          | 50.00      | 65,690ms    |
+| Pipeline (concurrency = 100)      | 100         | 100.00     | 32,845ms    |
+| Pipeline (concurrency = 200)      | 200         | 200.00     | 16,423ms    |
+
+Each chunk is only as fast as its _slowest_ item. Thus each chunking step is almost always blocked. Chunking cares about worst case in batch.
+
+In contrast, the pipeline remains stable. Pipeline cares about average.
+
+`Pipeline time ≈ total_work / concurrency`
+
+This means, the gap between chunking and pipeline becomes extreme: Chunking is consistently ~2x slower!
+
+#### Takeaway
+
+Sequential is simplest but slow.
+
+Full parallel is as fast as it gets, but unsafe due to uncontrolled parallelism.
+
+Chunking is controlled, but inefficient - item-processors within a chunk will sit idle until each item in the chunk is done!
+
+Pipelining is controlled and efficient. Every item-processors is always busy.
+
+*Chunking is dominated by the slowest item in each group; pipelines smooth out variance by continuously redistributing work.*
+
 ## Examples
 
 ### Fetch with concurrency limit
@@ -280,7 +524,6 @@ await ProcessConcurrently(fn, items, { log: () => {} });
 ```js
 await ProcessConcurrently(fn, items, { log: 'warn' });       // console.warn
 await ProcessConcurrently(fn, items, { log: myLogger.info }); // custom function
-await ProcessConcurrently(fn, items, { log: false });       // disable logging
 ```
 
 ## Browser
@@ -321,23 +564,23 @@ Make sure you type your iterator function well!
 import ProcessConcurrently from 'iterate-async';
 
 ProcessConcurrently(async (arg, com, meta): Promise<string> => {
-    console.log(com.hello);
-    console.log({...meta});
-    return arg.toFixed();
+    console.log(com.hello); // type { hello: string }
+    console.log({...meta}); // type as documented above
+    return arg.toFixed(); // arg is number
 }, [1, 2, 3, 4], {
     commonArgs: {
         hello: 'world'
     }
-}).then((results) => {
+}).then((results) => { // results is string[] as the function returned string
   console.log(results);
 });
 
-ProcessConcurrently(async (arg, _, meta): Promise<string> => {
+ProcessConcurrently(async (arg, _, meta): Promise<string> => { // arg is number, _ is undefined (as we pass no commonArgs), meta is as above
     console.log({...meta})
     return arg.toFixed();
 }, [1, 2, 3, 4], {
     concurrency: 2
-}).then((results) => {
+}).then((results) => { // results is string
   console.log(results);
 });
 
@@ -356,7 +599,7 @@ ProcessConcurrently(async (arg, common: {
   console.log(results);
 });
 
-ProcessConcurrently(async (a: string, b: string): Promise<string> => {
+ProcessConcurrently(async (a: string, b: string): Promise<string> => { // arg-signature must match the return type of applyArgs
     console.log(a, b);
     return a + ', ' + b;
 }, [1, 2, 3, 4], {
@@ -369,3 +612,15 @@ ProcessConcurrently(async (a: string, b: string): Promise<string> => {
   console.log(results);
 });
 ```
+
+## Why iterate-async?
+
+- No dependencies - no fuss
+- Native - use with any native type. No fancy pipeline constructors, no wrappers. Just pure javascript
+- Build in typescript
+- Native es6 (.mjs) support
+- One single, simple export - `ProcessConcurrently` - that can be directly awaited
+- Iterate *anything* without prior conversion
+- Uses pipelining rather than chunking
+- Small (4.33 kB raw /1.78 kB gzip)
+- Well-tested
