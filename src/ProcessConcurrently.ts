@@ -141,14 +141,14 @@ export function ProcessConcurrently<Item, Common, Applied extends any[], Result>
   fn: IteratorFunction<Item, Common, Result> | IteratorFunction2<Applied, Result> | IteratorFunctionClass<Item, Common, Result> | IteratorFunctionClass2<Applied, Result>,
   idxArg: Iterable<Item> | AsyncIterable<Item>,
   options: {
-    commonArgs?: Common;
+    commonArgs?: any;
     concurrency?: number;
     log?: LogOption;
     applyArgs?: ApplyArgsFn<Item, Common, Applied, Result>;
   } = {} as any
 ) {
   const {
-    commonArgs,
+    commonArgs as Common,
     concurrency = 4,
     applyArgs = (item: Item, common: Common | undefined, ctx: Meta<Result>) =>
       [item, common, ctx] as Applied,
