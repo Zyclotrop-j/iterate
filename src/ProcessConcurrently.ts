@@ -138,13 +138,14 @@ export function ProcessConcurrently<Item, Common, Applied extends any[], Result>
   this: ProcessConcurrentlyInstance<Result> | undefined,
   iteratorFunction: any,
   idxArg: Iterable<Item> | AsyncIterable<Item>,
-  options: {
+  opts
+) {
+  const options = (opts ?? {}) as {
     commonArgs?: any;
     concurrency?: number;
     log?: LogOption;
     applyArgs?: ApplyArgsFn<Item, Common, Applied, Result>;
-  } = {} as any
-) {
+  };
   const fn = iteratorFunction as IteratorFunction<Item, Common, Result> | IteratorFunction2<Applied, Result> | IteratorFunctionClass<Item, Common, Result> | IteratorFunctionClass2<Applied, Result>;
   const {
     commonArgs: cAr,
