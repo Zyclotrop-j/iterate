@@ -25,7 +25,7 @@ export type Meta<Result, IdxArg = unknown> = {
 // The function that processes each item.
 // `common` is typed as `Common | undefined` because `commonArgs` is optional in options.
 export type IteratorFunction<Input, Common, Result> =
-  (input: Input, common: Common | undefined, ctx: Meta<Result>) => Promise<Result> | Result;
+  (input: Input, common: Common, ctx: Meta<Result>) => Promise<Result> | Result;
 
 // Variant used when applyArgs is provided: fn receives a custom spread argument tuple.
 export type IteratorFunction2<Applied extends any[], Result> =
@@ -90,27 +90,48 @@ export interface ProcessConcurrentlyInstance<Result> extends Promise<Result[]> {
 
 type LogOption = 'log' | 'info' | 'warn' | 'error' | ((...args: any[]) => void);
 
-// Overload 1: With applyArgs — fn receives Input (first element of the tuple returned by applyArgs)
-export function ProcessConcurrently<Item, Common, Applied extends any[], Result>(
+// Overload 1a: Without applyArgs — fn receives Item directly - no common args
+export function ProcessConcurrently<Item, Result>(
+  fn: IteratorFunction<Item, undefined, Result> | IteratorFunctionClass<Item, undefined, Result>,
+  idxArg: Iterable<Item> | AsyncIterable<Item>,
+  options?: {
+    commonArgs: never;
+    concurrency?: number;
+    log?: LogOption;
+    applyArgs: never;
+  }
+): ProcessConcurrentlyInstance<Result>;
+// Overload 1b: Without applyArgs — fn receives Item directly - with common args
+export function ProcessConcurrently<Item, Common, Result>(
+  fn: IteratorFunction<Item, Common, Result> | IteratorFunctionClass<Item, Common, Result>,
+  idxArg: Iterable<Item> | AsyncIterable<Item>,
+  options: {
+    commonArgs: Common;
+    concurrency?: number;
+    log?: LogOption;
+    applyArgs: never;
+  }
+): ProcessConcurrentlyInstance<Result>;
+// Overload 2a: With applyArgs — fn receives Input (first element of the tuple returned by applyArgs) - no common args
+export function ProcessConcurrently<Item, Applied extends any[], Result>(
+  fn: IteratorFunction2<Applied, Result> | IteratorFunctionClass2<Applied, Result>,
+  idxArg: Iterable<Item> | AsyncIterable<Item>,
+  options?: {
+    commonArgs: never;
+    concurrency?: number;
+    log?: LogOption;
+    applyArgs?: ApplyArgsFn<Item, never, Applied, Result>;
+  }
+): ProcessConcurrentlyInstance<Result>;
+// Overload 2b: With applyArgs — fn receives Input (first element of the tuple returned by applyArgs) - with common args
+export function ProcessConcurrently<Item, Applied extends any[], Result>(
   fn: IteratorFunction2<Applied, Result> | IteratorFunctionClass2<Applied, Result>,
   idxArg: Iterable<Item> | AsyncIterable<Item>,
   options: {
     commonArgs?: Common;
     concurrency?: number;
     log?: LogOption;
-    applyArgs: ApplyArgsFn<Item, Common, Applied, Result>;
-  }
-): ProcessConcurrentlyInstance<Result>;
-
-// Overload 2: Without applyArgs — fn receives Item directly
-export function ProcessConcurrently<Item, Common, Result>(
-  fn: IteratorFunction<Item, Common, Result> | IteratorFunctionClass<Item, Common, Result>,
-  idxArg: Iterable<Item> | AsyncIterable<Item>,
-  options?: {
-    commonArgs?: Common;
-    concurrency?: number;
-    log?: LogOption;
-    applyArgs?: never;
+    applyArgs?: ApplyArgsFn<Item, Common, Applied, Result>;
   }
 ): ProcessConcurrentlyInstance<Result>;
 
