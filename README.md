@@ -137,6 +137,13 @@ await job;
 
 Scaling down aborts the excess worker slots via their `AbortSignal`. Scaling up to 0 pauses until concurrency is increased again.
 
+You can use this as a control feature, e.g., you can scale the concurrency down where there are many errors.
+
+```js
+if (errorRate > 0.1) job.concurrency = 2;
+else job.concurrency = 10;
+```
+
 ### applyArgs
 
 Use `applyArgs` when `fn` expects a different argument signature than `(item, common, meta)`. It receives the same three arguments and must return an array that will be spread into `fn`.
@@ -173,6 +180,11 @@ await ProcessConcurrently(fn, items, { concurrency: 4 });
 ```
 
 They are called once per worker slot, not once per item.
+
+This means, this is really useful for setting up shared, but limited resources, such as:
+- one DB connection per worker
+- one browser tab per worker
+- one GPU context per worker
 
 ```
 
@@ -273,6 +285,15 @@ Processed 5 at 208
 Processed 7 at 208
 */
 ```
+
+Note that in the real world, this will go sideways real fast!
+Think:
+- APIs rate limiting
+- DB connection pools
+- file descriptor limits
+- memory pressure
+
+Concurrency is not only about speed - it's about not crashing your system.
 
 #### One chunk at a time
 
@@ -398,7 +419,7 @@ Processed 7 at 634
 
 Assume workloads are vastly uneven - this is how, in reality, many workloads (network requets, competing for physical resources, file-processing, ...) behave.
 
-We will assume 1000 items to be processed. As an example formular we take `(i % 100)^2 + 1`, that is item 1 takes 1ms, item 2 takes 2ms, item 3 takes 5ms, item 4 takes 10ms, ..., item 96 takes 9410ms, item 97 takes 9605ms, item 98 takes 9802ms, item 99 takes 1ms, item 100 takes 2ms and so on.
+We will assume 1000 items to be processed. As an example formular we take `(i % 100)^2 + 1`, that is item 1 takes 2ms, item 2 takes 5ms, item 3 takes 10ms, ..., item 96 takes 9410ms, item 97 takes 9605ms, item 98 takes 9802ms, item 99 takes 1ms, item 100 takes 2ms and so on.
 
 With this modelling, the table from above looks as follows.
 
@@ -429,7 +450,7 @@ In contrast, the pipeline remains stable. Pipeline cares about average.
 
 `Pipeline time ≈ total_work / concurrency`
 
-This means, the gap between chunking and pipeline becomes extreme: Chunking is consistently ~2x slower!
+This means, the gap between chunking and pipeline becomes extreme: In the above example, chunking is consistently ~2x slower!
 
 #### Takeaway
 
@@ -615,12 +636,114 @@ ProcessConcurrently(async (a: string, b: string): Promise<string> => { // arg-si
 
 ## Why iterate-async?
 
+### Comparisons to libraries and frameworks
+
+#### Quick comparison
+
+- p-map → concurrent mapping over iterables  
+- p-limit → concurrency limiter (primitive)  
+- p-queue → full task queue (scheduler)  
+- **iterate-async** → pipelined iterable processor (work-stealing)
+
+#### Feature comparison
+
+| Feature / Model                | iterate-async | p-map | p-limit | p-queue |
+|-------------------------------|--------------|-------|--------|--------|
+| Core abstraction              | Iterable pipeline | Array map | Function wrapper | Task queue |
+| Works on any iterable         | ✅            | ✅ | ❌ | ❌ |
+| Async generators / infinite   | ✅            | ✅ | ❌ | ❌ |
+| Concurrency limiting          | ✅            | ✅ | ✅ | ✅ |
+| Scheduling model              | Work-stealing pipeline | Batched mapping | Queue + Promise.all | Queue (FIFO / priority) |
+| Dynamic concurrency           | ✅            | ❌ | ⚠️ (manual) | ⚠️ (config-driven) |
+| Backpressure control          | ✅            | ❌ | ❌ | ✅ |
+| Lifecycle hooks (per worker)  | ✅            | ❌ | ❌ | ❌ |
+| Progress / live meta          | ✅            | ❌ | ❌ | ⚠️ events |
+| Result ordering               | Stable        | Stable | Manual | Configurable |
+| Pause / resume                | ✅ | ❌ | ❌ | ✅ |
+| Rate limiting (time-based)    | ❌            | ❌ | ❌ | ✅ |
+
+#### Key differences
+
+##### vs p-map
+
+- Processes a *fixed collection* with concurrency
+- lacks progress reporting and lifecycle hooks
+
+**Bottom line:**  
+`p-map = concurrent map`  
+`iterate-async = streaming pipeline`
+
+##### vs p-limit
+
+- `p-limit` is a **low-level primitive**
+- You manually wrap functions and still rely on `Promise.all`
+
+**Critical difference:**
+
+```js
+// p-limit → YOU manage the loop + scheduling
+await Promise.all(items.map(item => limit(() => fn(item))));
+
+// iterate-async → scheduling is built-in
+await ProcessConcurrently(fn, items);
+```
+
+**Bottom line:**  
+`p-limit = building block`
+`iterate-async = system`
+
+##### vs p-queue
+
+p-queue is a task queue which focuses on priorities, pause/resume and rate limiting
+
+iterate-async:
+- No queue abstraction
+- Focus is data flow, not job orchestration
+
+Core difference:
+- Queue → push tasks into system
+- Pipeline → pull work from iterable
+
+**Bottom line:**  
+`p-queue = scheduler`
+`iterate-async = processor`
+
+##### When to use what
+
+Use iterate-async when:
+- You intend to process _something_ iterable
+- Workloads are uneven or unpredictable
+- One workload may spawn one or more other workload
+- You want to dynamically control concurrency
+- You can't use all-at-once or one-at-a-time
+- You want one abstraction that just works
+
+Use p-map when:
+- You have a fixed-size iterable
+- You just want `Promise.all` with limited concurrency
+
+Use p-limit when:
+- You already have a system
+- You just need to cap concurrency
+
+Use p-queue when:
+- You need priorities / retries / scheduling
+- You are building a job system
+
+### iterate-async's pipelining implementation
+
+This implementation is a *work-stealing scheduler over an iterable*.
+
+It's not chunking; it's not like most naive concurrency pools; *there is no pre-partitioning, no fixed assignment - just pull-based scheduling.*
+
+### In a nutshell
+
 - No dependencies - no fuss
 - Native - use with any native type. No fancy pipeline constructors, no wrappers. Just pure javascript
 - Build in typescript
 - Native es6 (.mjs) support
 - One single, simple export - `ProcessConcurrently` - that can be directly awaited
 - Iterate *anything* without prior conversion
-- Uses pipelining rather than chunking
 - Small (4.33 kB raw /1.78 kB gzip)
 - Well-tested
+- Uses pipelining rather than chunking
