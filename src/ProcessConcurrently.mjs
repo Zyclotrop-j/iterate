@@ -27,6 +27,13 @@ export function ProcessConcurrently(fn, idxArg, {
   if (!isIterable(idxArg)) {
     throw new TypeError(`'idxArg' must be iterable! Found ${idxArg}`);
   }
+  if(['info', 'log', 'warn', 'error'].includes(log)) {
+    const logLevel = log;
+    log = (...args) => console[logLevel](...args)
+  }
+  if(!log) { // turn off logging
+    log = () => {};
+  }
   const asyncIter = idxArg[Symbol.asyncIterator]?.bind(idxArg);
   const syncIter = idxArg[Symbol.iterator]?.bind(idxArg);
   const iter = syncIter ? syncIter() : asyncIter();
