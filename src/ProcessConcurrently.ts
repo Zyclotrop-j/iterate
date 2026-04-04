@@ -12,6 +12,7 @@ export const defaultLogger = (...args: any[]) => console.log(...args);
 
 export type Meta<Result, IdxArg = unknown> = {
   readonly idx: number;
+  readonly idxx: number;
   readonly done: number;
   readonly active: number;
   readonly idxArg: IdxArg;
