@@ -144,7 +144,7 @@ await ProcessConcurrently(fn, requests, {
 
 ### Lifecycle hooks
 
-`fn` can expose `init` and `destroy` static methods (or static class methods). They are called once per worker slot, not once per item.
+`fn` can expose `init` and `destroy` static methods (or class methods).
 
 ```js
 // As a plain function with statics
@@ -162,6 +162,33 @@ class fn {
 
 await ProcessConcurrently(fn, items, { concurrency: 4 });
 // init/constructor called 4 times (once per slot), destroy called 4 times at the end
+```
+
+They are called once per worker slot, not once per item.
+
+```
+
+class fn {
+  constructor({ signal, worker }: { signal: AbortSignal; worker: number }) { console.log("CONSTRUCTOR", worker) }
+  init({ signal, worker }: { signal: AbortSignal; worker: number })    { console.log("INIT", worker) }
+  destroy({ worker, error }: { worker: number; error?: Error })  { console.log("DESTROY", worker) }
+  async run(item: number, common: any, meta: any)      { console.log("RUN", item) }
+}
+ProcessConcurrently(fn, [1,2, 3, 4], { concurrency: 2, log: () => {} }).then(it => console.log(it))
+
+/*
+Logs: 
+CONSTRUCTOR 0
+CONSTRUCTOR 1
+INIT 0
+RUN 1
+INIT 1
+RUN 2
+RUN 3
+RUN 4
+DESTROY 0
+DESTROY 1
+*/
 ```
 
 ## Examples
