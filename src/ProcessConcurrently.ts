@@ -124,7 +124,7 @@ export function ProcessConcurrently<Item, Applied extends any[], Result>(
   }
 ): ProcessConcurrentlyInstance<Result>;
 // Overload 2b: With applyArgs — fn receives Input (first element of the tuple returned by applyArgs) - with common args
-export function ProcessConcurrently<Item, Applied extends any[], Result>(
+export function ProcessConcurrently<Item, Common, Applied extends any[], Result>(
   fn: IteratorFunction2<Applied, Result> | IteratorFunctionClass2<Applied, Result>,
   idxArg: Iterable<Item> | AsyncIterable<Item>,
   options: {
