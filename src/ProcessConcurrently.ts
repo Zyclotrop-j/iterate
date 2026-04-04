@@ -148,7 +148,7 @@ export function ProcessConcurrently<Item, Common, Applied extends any[], Result>
   const {
     commonArgs: cAr,
     concurrency = 4,
-    applyArgsOpts = (item: Item, common: Common, ctx: Meta<Result>) =>
+    applyArgs: applyArgsOpts = (item: Item, common: Common, ctx: Meta<Result>) =>
       [item, common, ctx],
   } = options;
   const commonArgs = cAr as Common;
