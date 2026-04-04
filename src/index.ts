@@ -3,4 +3,5 @@ import { ProcessConcurrently as ProcessConcurrentlyImport } from "./ProcessConcu
 export const ProcessConcurrently = ProcessConcurrentlyImport;
 export const iterate = ProcessConcurrentlyImport;
 export const run = ProcessConcurrentlyImport;
+export const runAsync = ProcessConcurrentlyImport;
 export default ProcessConcurrentlyImport;
