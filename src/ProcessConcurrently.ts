@@ -138,7 +138,7 @@ export function ProcessConcurrently<Item, Common, Applied extends any[], Result>
   this: ProcessConcurrentlyInstance<Result> | undefined,
   iteratorFunction: any,
   idxArg: Iterable<Item> | AsyncIterable<Item>,
-  opts
+  opts: any
 ) {
   const options = (opts ?? {}) as {
     commonArgs?: any;
