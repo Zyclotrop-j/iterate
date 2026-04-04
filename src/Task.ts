@@ -28,12 +28,17 @@ export function Task<Item, Common, Applied extends any[], Result>(this: TaskHand
     if (ctx.done) { // already done, no need to create another slot
       return;
     }
-    ++ctx.active;
-    if ('init' in ctx.fn && ctx.fn.init) {
-      ctx.fn.init({ signal: controller.signal, worker: c });
-    }
-    if ('init' in fn && fn.init) {
-      fn.init({ signal: controller.signal, worker: c });
+    let isSetup = false;
+    const firstTimeSetup = () => {
+      if(isSetup) return;
+      ++ctx.active;
+      if ('init' in ctx.fn && ctx.fn.init) {
+        ctx.fn.init({ signal: controller.signal, worker: c });
+      }
+      if ('init' in fn && fn.init) {
+        fn.init({ signal: controller.signal, worker: c });
+      }
+      isSetup = true;
     }
     while (!ctx.done && !controller.signal.aborted) {
       let nextValue = ctx.iterator.next(); // iterator protocol
@@ -44,6 +49,7 @@ export function Task<Item, Common, Applied extends any[], Result>(this: TaskHand
       ctx.done ||= !!d;
       if (ctx.done)
         break;
+      firstTimeSetup();
       const localIdx = ctx.idxx++;
       ctx.log(`[SLOT ${c}]: ${item}`);
       const meta: Meta<Result> = {
