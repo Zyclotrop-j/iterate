@@ -9,7 +9,7 @@ export async function createLoop<Item, Common, Applied extends any[], Result>(
   const safeConcurrency = Math.min(concurrency, Number.MAX_SAFE_INTEGER);
   for (let i = 0; i < safeConcurrency; i++) {
     new (Task as unknown as new (ctx: ConcurrentContext<Item, Common, Applied, Result>) => void)(concurrent);
-    if((i % 100) === 0) { // check every 100 if we are already done
+    if((i % 100) === 0 && i > 0) { // check every 100 if we are already done
       await Promise.resolve();
       if(concurrent.done) break;
     }
