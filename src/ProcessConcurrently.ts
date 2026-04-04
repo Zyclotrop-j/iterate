@@ -148,11 +148,12 @@ export function ProcessConcurrently<Item, Common, Applied extends any[], Result>
   } = {} as any
 ) {
   const {
-    commonArgs as Common,
+    commonArgs: cAr,
     concurrency = 4,
     applyArgs = (item: Item, common: Common | undefined, ctx: Meta<Result>) =>
       [item, common, ctx] as Applied,
   } = options;
+  const commonArgs = cAr as Common;
 
   // Constructor Guard
   if (!(this instanceof ProcessConcurrently)) {
