@@ -6,7 +6,7 @@
     "baretest": "^2.0.0",
     "c8": "^11.0.0",
     "esbuild": "^0.28.0",
-    "typescript": "^6.0.2"
+    "typescript": "^7.0.2"
   },
   "name": "iterate-async",
   "version": "1.10.0",
